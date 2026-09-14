@@ -1,0 +1,10 @@
+polars
+duckdb
+pyarrow
+pytest
+pydantic
+
+# Solo para src/benchmark.py (baseline de comparacion Pandas vs. Polars+DuckDB
+# y medicion de RAM por proceso) - no forman parte del pipeline de produccion.
+pandas
+psutil
