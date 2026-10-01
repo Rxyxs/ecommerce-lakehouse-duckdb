@@ -1,3 +1,5 @@
+[ 🇺🇸 English ] | [ 🇨🇱 [Leer en Español](README.es.md) ]
+
 # Modern Lakehouse Analytics Pipeline
 
 ![Python](https://img.shields.io/badge/python-3.12-blue?logo=python&logoColor=white)
@@ -8,148 +10,148 @@
 ![Tests](https://github.com/Rxyxs/ecommerce-lakehouse-duckdb/actions/workflows/tests.yml/badge.svg)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
-Pipeline de datos moderno para ingesta y analítica de clickstream/e-commerce a escala, construido sobre un **lakehouse** de archivos Parquet particionados: Polars para ETL multihilo, PyArrow para el particionamiento columnar, y DuckDB como motor SQL analítico embebido que consulta el lake directamente sin cargarlo completo a RAM.
+A modern data pipeline for ingesting and analyzing clickstream/e-commerce events at scale, built on a **lakehouse** of partitioned Parquet files: Polars for multithreaded ETL, PyArrow for columnar partitioning, and DuckDB as the embedded analytical SQL engine that queries the lake directly without loading it into RAM.
 
-## Caso de uso de negocio
+## Business use case
 
-Un sitio de e-commerce genera eventos de clickstream (vistas de página, vistas de producto, carritos, checkouts, compras) a un volumen que ya no cabe cómodamente en un `pandas.DataFrame` en memoria. Este proyecto simula ese escenario end-to-end:
+An e-commerce site generates clickstream events (page views, product views, carts, checkouts, purchases) at a volume that no longer fits comfortably in an in-memory `pandas.DataFrame`. This project simulates that scenario end to end:
 
-1. **Genera** 100,000+ eventos sintéticos con un embudo de conversión realista.
-2. **Ingiere** esos eventos: limpia, valida el contrato de esquema, y los persiste como un Data Lake Parquet particionado por fecha.
-3. **Analiza** el lake con SQL directo sobre Parquet (DuckDB) para responder preguntas de negocio: ¿dónde se cae la gente en el embudo? ¿qué cohortes retienen mejor? ¿quiénes son los clientes de mayor valor?
-4. **Compara** el enfoque contra un pipeline Pandas tradicional, midiendo tiempo y memoria.
+1. **Generates** 100,000+ synthetic events with a realistic conversion funnel.
+2. **Ingests** those events: cleans them, validates the schema contract, and persists them as a Parquet data lake partitioned by date.
+3. **Analyzes** the lake with SQL run directly over Parquet (DuckDB) to answer business questions: where do people drop out of the funnel? which cohorts retain best? who are the highest-value customers?
+4. **Compares** the approach against a traditional Pandas pipeline, measuring time and memory.
 
-## Arquitectura
+## Architecture
 
 ```
 ┌───────────────────────────┐
-│ synthetic_clickstream.py  │   genera eventos (page_view -> ... -> purchase)
+│ synthetic_clickstream.py  │   generates events (page_view -> ... -> purchase)
 └─────────────┬──────────────┘
               │
               ▼
-   data/raw/clickstream_events.parquet   (sin particionar, ~100k+ filas)
+   data/raw/clickstream_events.parquet   (unpartitioned, ~100k+ rows)
               │
               ▼
 ┌───────────────────────────┐
-│      ingestion.py          │   Polars: dedup, sanidad numérica, columnas de partición
-│  (contrato Pydantic v2)    │   PyArrow: escritura particionada Hive-style
+│      ingestion.py          │   Polars: dedup, numeric sanity, partition columns
+│  (Pydantic v2 contract)    │   PyArrow: Hive-style partitioned write
 └─────────────┬──────────────┘
               │
               ▼
    data/lakehouse/events/
    ├── year=2025/month=01/day=01/part-0.parquet
    ├── year=2025/month=01/day=02/part-0.parquet
-   └── ...                                  (1 archivo Parquet por día)
+   └── ...                                  (1 Parquet file per day)
               │
               ▼
 ┌───────────────────────────┐
-│       analytics.py         │   DuckDB: SQL directo sobre Parquet, sin cargar todo a RAM
+│       analytics.py         │   DuckDB: SQL straight over Parquet, nothing loaded into RAM
 └─────────────┬──────────────┘
               │
    ┌──────────┼───────────┬───────────────┐
    ▼          ▼            ▼               ▼
- Embudo   Cohortes/     LTV top          Ingresos
- conv.    retención     clientes         por categoría
+Conversion  Cohorts /    Top-LTV         Revenue
+ funnel     retention    customers      by category
 ```
 
-## Estructura del proyecto
+## Project structure
 
 ```
 ecommerce-lakehouse-duckdb/
 ├── data/
-│   ├── raw/                          # clickstream_events.parquet (generado, no versionado)
-│   └── lakehouse/                    # events/year=/month=/day=/*.parquet (generado, no versionado)
+│   ├── raw/                          # clickstream_events.parquet (generated, untracked)
+│   └── lakehouse/                    # events/year=/month=/day=/*.parquet (generated, untracked)
 ├── src/
 │   ├── generators/
-│   │   └── synthetic_clickstream.py  # Genera 100,000+ eventos de clickstream sintéticos
+│   │   └── synthetic_clickstream.py  # Generates 100,000+ synthetic clickstream events
 │   ├── lakehouse/
-│   │   ├── ingestion.py              # Polars + PyArrow: limpieza, contrato de esquema, particionado
-│   │   └── analytics.py              # DuckDB: embudo, cohortes, LTV, ingresos por categoría
-│   └── benchmark.py                  # Pandas vs. Polars vs. DuckDB: tiempo y RAM
+│   │   ├── ingestion.py              # Polars + PyArrow: cleaning, schema contract, partitioning
+│   │   └── analytics.py              # DuckDB: funnel, cohorts, LTV, revenue by category
+│   └── benchmark.py                  # Pandas vs. Polars vs. DuckDB: time and RAM
 ├── tests/
-│   └── test_lakehouse.py             # Pruebas de esquema y métricas (pytest)
-├── .github/workflows/tests.yml       # CI: corre pytest en cada push/PR
+│   └── test_lakehouse.py             # Schema and metric tests (pytest)
+├── .github/workflows/tests.yml       # CI: runs pytest on every push/PR
 ├── requirements.txt
 └── README.md
 ```
 
-## Dataset sintético
+## Synthetic dataset
 
-`src/generators/synthetic_clickstream.py` simula 8,000 usuarios repartidos en tres segmentos de compromiso (`one_time`, `casual`, `loyal`, con distinto número de sesiones cada uno) a lo largo de ~90 días. Cada sesión progresa por un embudo con caída de conversión realista en cada paso:
+`src/generators/synthetic_clickstream.py` simulates 8,000 users split across three engagement segments (`one_time`, `casual`, `loyal`, each with a different session count) over roughly 90 days. Every session walks a funnel with a realistic conversion drop at each step:
 
 ```
 page_view -> product_view -> add_to_cart -> checkout_start -> purchase
   100%          ~60%             ~38%            ~55%            ~65%
-                                                            (condicional al paso anterior)
+                                                          (conditional on the previous step)
 ```
 
-Con la semilla por defecto esto produce **~112,000 eventos** (por encima del mínimo de 100,000 pedido), con columnas: `event_id`, `user_id`, `session_id`, `event_type`, `event_timestamp`, `product_id`, `category`, `price`, `quantity`, `revenue`, `device_type`, `country`, `referrer_source`.
+With the default seed this produces **~112,000 events** (above the 100,000 minimum asked for), with columns: `event_id`, `user_id`, `session_id`, `event_type`, `event_timestamp`, `product_id`, `category`, `price`, `quantity`, `revenue`, `device_type`, `country`, `referrer_source`.
 
-## Módulos
+## Modules
 
 ### `src/lakehouse/ingestion.py`
-- **Limpieza (Polars)**: deduplica por `event_id`, descarta filas sin `user_id`/`event_timestamp`, anula (no inventa) `price`/`quantity`/`revenue` negativos.
-- **Contrato de esquema (Pydantic v2)**: `ClickstreamEventContract` valida que las columnas requeridas existan, y valida por tipo una muestra de filas (no todas — a este volumen, validar fila por fila contradice el propósito de un pipeline de alto rendimiento). Una violación de contrato lanza una excepción: indica un bug de ingestión, no un dato de negocio inválido a aislar.
-- **Particionado (PyArrow)**: escribe el resultado como Parquet Hive-partitioned (`year=/month=/day=`), con `existing_data_behavior="delete_matching"` para que reprocesar sea idempotente.
+- **Cleaning (Polars)**: deduplicates on `event_id`, drops rows missing `user_id`/`event_timestamp`, and nulls out (rather than invents) negative `price`/`quantity`/`revenue`.
+- **Schema contract (Pydantic v2)**: `ClickstreamEventContract` validates that the required columns exist, and type-validates a sample of rows rather than all of them — at this volume, row-by-row validation defeats the purpose of a high-throughput pipeline. A contract violation raises: it signals an ingestion bug, not an invalid business record to quarantine.
+- **Partitioning (PyArrow)**: writes the result as Hive-partitioned Parquet (`year=/month=/day=`), with `existing_data_behavior="delete_matching"` so reprocessing is idempotent.
 
 ### `src/lakehouse/analytics.py`
-Cuatro consultas de negocio, todas SQL puro ejecutado por DuckDB directamente sobre los archivos Parquet (`read_parquet(..., hive_partitioning=true)`):
-- `conversion_funnel` — sesiones que alcanzan cada paso del embudo.
-- `cohort_retention` — usuarios activos por mes, agrupados por el mes de su primer evento.
-- `customer_ltv` — top clientes por ingresos totales de compra.
-- `revenue_by_category` — ingresos y ticket promedio por categoría.
+Four business queries, all pure SQL executed by DuckDB directly against the Parquet files (`read_parquet(..., hive_partitioning=true)`):
+- `conversion_funnel` — sessions reaching each funnel step.
+- `cohort_retention` — active users per month, grouped by the month of their first event.
+- `customer_ltv` — top customers by total purchase revenue.
+- `revenue_by_category` — revenue and average ticket per category.
 
 ### `src/benchmark.py`
-Corre la misma agregación (ingresos por categoría, solo compras) con Pandas, Polars y DuckDB sobre el mismo archivo Parquet, y mide tiempo (`time.perf_counter`) y delta de memoria RSS del proceso (`psutil`).
+Runs the same aggregation (revenue by category, purchases only) with Pandas, Polars and DuckDB over the same Parquet file, measuring wall time (`time.perf_counter`) and the process's RSS memory delta (`psutil`).
 
-## Resultados del benchmark
+## Benchmark results
 
-Corrida real sobre ~112,000 eventos (ver metodología abajo):
+A real run over ~112,000 events (see the methodology note below):
 
-| Motor   | Tiempo (s) | Δ RAM (MB) |
-|---------|-----------:|-----------:|
-| DuckDB  |      ~0.04 |        ~6  |
-| Polars  |      ~0.05 |       ~37  |
-| Pandas  |      ~0.12 |       ~60  |
+| Engine  | Time (s) | Δ RAM (MB) |
+|---------|---------:|-----------:|
+| DuckDB  |    ~0.04 |        ~6  |
+| Polars  |    ~0.05 |       ~37  |
+| Pandas  |    ~0.12 |       ~60  |
 
-DuckDB gana en ambas dimensiones porque nunca materializa el archivo completo como objeto Python — agrega directamente sobre el escaneo de Parquet. Polars es ~2.5x más rápido que Pandas incluso materializando el DataFrame completo, gracias a su motor multihilo en Rust.
+DuckDB wins on both dimensions because it never materializes the whole file as a Python object — it aggregates directly over the Parquet scan. Polars is ~2.5x faster than Pandas even while materializing the full DataFrame, thanks to its multithreaded Rust engine.
 
-**Metodología y limitaciones honestas**: el tiempo es una sola corrida por motor (`time.perf_counter`); para un benchmark riguroso correspondería promediar varias corridas. La memoria es un delta de RSS del proceso *actual* entre antes/después de cada corrida (con `gc.collect()` de por medio) — no un pico aislado por subproceso, así que es una aproximación de orden de magnitud, no un profiling de memoria estricto. Reproducí los números tres veces (`python -m src.benchmark`) antes de documentarlos y el ordenamiento relativo fue estable entre corridas.
+**Methodology and honest limitations**: the timing is a single run per engine (`time.perf_counter`); a rigorous benchmark would average several runs. The memory figure is an RSS delta of the *current* process between before and after each run (with a `gc.collect()` in between) — not an isolated peak per subprocess, so it's an order-of-magnitude approximation rather than strict memory profiling. I reproduced the numbers three times (`python -m src.benchmark`) before documenting them, and the relative ordering was stable across runs.
 
-## Instalación
+## Installation
 
 ```bash
 python -m venv .venv
-source .venv/bin/activate      # En Windows: .venv\Scripts\activate
+source .venv/bin/activate      # On Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-## Uso
+## Usage
 
 ```bash
-# 1. Generar el dataset sintético (data/raw/clickstream_events.parquet)
+# 1. Generate the synthetic dataset (data/raw/clickstream_events.parquet)
 python -m src.generators.synthetic_clickstream
 
-# 2. Ingerir: limpiar, validar contrato, escribir el lake particionado
+# 2. Ingest: clean, validate the contract, write the partitioned lake
 python -m src.lakehouse.ingestion
 
-# 3. Correr las consultas analíticas sobre el lake
+# 3. Run the analytical queries over the lake
 python -m src.lakehouse.analytics
 
-# 4. Comparar Pandas vs. Polars vs. DuckDB
+# 4. Compare Pandas vs. Polars vs. DuckDB
 python -m src.benchmark
 
-# Pruebas unitarias
+# Unit tests
 pytest tests/
 ```
 
-## Stack técnico
+## Tech stack
 
-| Herramienta | Rol |
+| Tool | Role |
 |---|---|
-| **Polars** | ETL — limpieza y transformación multihilo respaldada en Rust |
-| **DuckDB** | Motor SQL analítico embebido, consulta Parquet sin cargarlo a RAM |
-| **PyArrow** | Escritura de Parquet particionado (Hive-style) |
-| **Pydantic v2** | Contrato de esquema del evento de clickstream |
-| **pytest** | Pruebas unitarias de limpieza, contrato de esquema y métricas |
-| **pandas / psutil** | Solo en `benchmark.py`, como baseline de comparación y medición de RAM |
+| **Polars** | ETL — multithreaded, Rust-backed cleaning and transformation |
+| **DuckDB** | Embedded analytical SQL engine, queries Parquet without loading it into RAM |
+| **PyArrow** | Hive-style partitioned Parquet writes |
+| **Pydantic v2** | Schema contract for the clickstream event |
+| **pytest** | Unit tests for cleaning, schema contract and metrics |
+| **pandas / psutil** | Only in `benchmark.py`, as the comparison baseline and for RAM measurement |
