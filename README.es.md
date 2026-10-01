@@ -67,7 +67,8 @@ ecommerce-lakehouse-duckdb/
 │   ├── lakehouse/
 │   │   ├── ingestion.py              # Polars + PyArrow: limpieza, contrato de esquema, particionado
 │   │   └── analytics.py              # DuckDB: embudo, cohortes, LTV, ingresos por categoría
-│   └── benchmark.py                  # Pandas vs. Polars vs. DuckDB: tiempo y RAM
+│   ├── benchmark.py                  # Pandas vs. Polars vs. DuckDB: tiempo y RAM
+│   └── make_figures.py               # Gráficos del README, desde las mismas consultas
 ├── tests/
 │   └── test_lakehouse.py             # Pruebas de esquema y métricas (pytest)
 ├── .github/workflows/tests.yml       # CI: corre pytest en cada push/PR
@@ -101,22 +102,60 @@ Cuatro consultas de negocio, todas SQL puro ejecutado por DuckDB directamente so
 - `customer_ltv` — top clientes por ingresos totales de compra.
 - `revenue_by_category` — ingresos y ticket promedio por categoría.
 
+![Embudo de conversión y sus tasas por paso contra el diseño del generador](outputs/figures/conversion_funnel.png)
+
+#### El embudo mide algo levemente distinto de lo que configura el generador
+
+Entran 37.141 sesiones y compran 3.037, una tasa punta a punta de 8,2%. Tres de las cuatro tasas por paso caen sobre los parámetros del generador: 86,5% contra 86,7% implícito, 54,4% contra 55%, 65,5% contra 65%. La segunda no — lee **26,5% donde el generador aplica 38%**.
+
+No es un bug ni de la consulta ni del generador. `_simulate_session` emite 0–2 `product_view` de navegación *antes* de la rama del embudo, independientes de la probabilidad del funnel:
+
+```python
+emit("page_view")
+for _ in range(rng.randint(0, 2)):        # navegación, fuera del embudo
+    emit("product_view", product=rng.choice(catalog))
+if rng.random() < 0.60:                   # el product_view propio del embudo
+    emit("product_view", product=product)
+    if rng.random() < 0.38:
+        emit("add_to_cart", product=product)
+```
+
+Entonces una sesión alcanza `product_view` por navegación o por el embudo: P = 1 − (1/3)(1 − 0,60) = **86,7%**, que es lo que mide el primer paso. Pero `add_to_cart` solo es alcanzable por la rama del embudo: P = 0,60 × 0,38 = **22,8% de todas las sesiones**, y el lake da 8.514/37.141 = 22,9%. Los dos números están exactamente bien. La tasa de 26,5% es baja porque su *denominador* incluye sesiones que solo navegaron y nunca estuvieron en el embudo.
+
+Ese es el modo de falla corriente del análisis de embudos sobre clickstream real: un tipo de evento que se dispara dentro y fuera del embudo corrompe la tasa del paso que lo usa de denominador, mientras deja todos los conteos absolutos correctos. La corrección es definir el embudo sobre sesiones con intención de compra en vez de sobre todas — algo que los eventos crudos permiten, y que esta consulta deliberadamente no hace, para que la distinción quede visible.
+
+![Ingresos y volumen de órdenes por categoría](outputs/figures/revenue_by_category.png)
+
+Los ingresos están concentrados: Electronics es 58,7% del total con 549 compras, el segundo conteo de órdenes más bajo. Las compras son casi planas entre las seis categorías (449–549), así que el ranking de ingresos es casi enteramente ticket promedio — $1.255 de Electronics contra $52 de Books, una brecha de 24x que viene directo de los rangos de precio por categoría del generador.
+
+![Mapa de calor de retención por cohorte](outputs/figures/cohort_retention.png)
+
+La consulta de cohortes funciona y las tres cohortes suman exactamente los 8.000 usuarios generados. El *resultado*, en cambio, es un chequeo sobre los datos más que un hallazgo: la cohorte de enero va 100% → 49% → 50%, subiendo en el mes 2. La retención real decae. Acá no, porque el generador sortea las sesiones de cada usuario de forma uniforme sobre toda la ventana de 90 días, así que un usuario tiene la misma probabilidad de estar activo en cualquier mes. No hay churn en estos datos que encontrar, y lo honesto es decirlo en vez de presentar una curva plana como un insight de retención.
+
 ### `src/benchmark.py`
 Corre la misma agregación (ingresos por categoría, solo compras) con Pandas, Polars y DuckDB sobre el mismo archivo Parquet, y mide tiempo (`time.perf_counter`) y delta de memoria RSS del proceso (`psutil`).
 
 ## Resultados del benchmark
 
-Corrida real sobre ~112,000 eventos (ver metodología abajo):
+Corrida real sobre 112.608 eventos:
 
-| Motor   | Tiempo (s) | Δ RAM (MB) |
-|---------|-----------:|-----------:|
-| DuckDB  |      ~0.04 |        ~6  |
-| Polars  |      ~0.05 |       ~37  |
-| Pandas  |      ~0.12 |       ~60  |
+![Benchmark de motores: tiempo y memoria](outputs/figures/engine_benchmark.png)
 
-DuckDB gana en ambas dimensiones porque nunca materializa el archivo completo como objeto Python — agrega directamente sobre el escaneo de Parquet. Polars es ~2.5x más rápido que Pandas incluso materializando el DataFrame completo, gracias a su motor multihilo en Rust.
+| Motor | Frío: tiempo (s) | Frío: Δ RSS (MB) | Tibio: mediana tiempo (s) | Tibio: mediana Δ RSS (MB) |
+|-------|-----------------:|-----------------:|--------------------------:|--------------------------:|
+| DuckDB |           0,0182 |              8,7 |                    0,0155 |                       0,4 |
+| Polars |           0,0212 |             43,1 |                    0,0147 |                      12,0 |
+| Pandas |           0,1116 |             87,6 |                    0,0776 |                      21,3 |
 
-**Metodología y limitaciones honestas**: el tiempo es una sola corrida por motor (`time.perf_counter`); para un benchmark riguroso correspondería promediar varias corridas. La memoria es un delta de RSS del proceso *actual* entre antes/después de cada corrida (con `gc.collect()` de por medio) — no un pico aislado por subproceso, así que es una aproximación de orden de magnitud, no un profiling de memoria estricto. Reproducí los números tres veces (`python -m src.benchmark`) antes de documentarlos y el ordenamiento relativo fue estable entre corridas.
+**El resultado que sobrevive a la repetición es que tanto DuckDB como Polars son ~5x más rápidos que pandas.** La diferencia entre DuckDB y Polars no es algo que este benchmark pueda dirimir: medida en frío, DuckDB va adelante en ambas dimensiones; medida en tibio sobre 7 corridas, Polars tiene la mediana más baja y los dos rangos se solapan. Sobre una sola agregación de 112k filas los dos son la misma clase de motor, y declarar un ganador entre ellos sería leer ruido.
+
+Contra pandas el mecanismo sí es real y aparece de las dos formas: DuckDB agrega sobre el escaneo de Parquet sin materializar el archivo como objeto Python, y Polars sí lo materializa pero hace el trabajo en un motor multihilo en Rust.
+
+**Sobre la columna de memoria — son dos números distintos, y la distinción importa.** El delta de RSS está medido en frío (una corrida en un intérprete recién lanzado, así que el delta incluye la asignación) y en tibio (la mediana de repeticiones dentro de un mismo proceso). Difieren ~10x en DuckDB, porque después de la primera corrida el asignador ya tiene las páginas y el delta de la segunda no mide casi nada. El número tibio no es una medición más chica de lo mismo; es una medición de otra cosa, y **la columna fría es la que hay que citar**.
+
+La columna fría viene de `src/make_figures.py`, que lanza un intérprete fresco por motor. `src/benchmark.py` en cambio corre los tres secuencialmente en un solo proceso, así que solo el primero que mide está genuinamente frío; en la práctica sus números quedan cerca de la columna fría (6,5 / 42,8 / 87,8 MB en la corrida verificada acá) porque cada motor asigna sus propias estructuras, pero eso es una propiedad de esta carga, no una garantía.
+
+Ninguna de las dos columnas es profiling de pico de memoria, así que leé ambas como órdenes de magnitud y no como costos precisos.
 
 ## Instalación
 
@@ -141,6 +180,9 @@ python -m src.lakehouse.analytics
 # 4. Comparar Pandas vs. Polars vs. DuckDB
 python -m src.benchmark
 
+# 5. Redibujar los gráficos del README (repite el benchmark en frío y en tibio)
+python -m src.make_figures
+
 # Pruebas unitarias
 pytest tests/
 ```
@@ -155,3 +197,4 @@ pytest tests/
 | **Pydantic v2** | Contrato de esquema del evento de clickstream |
 | **pytest** | Pruebas unitarias de limpieza, contrato de esquema y métricas |
 | **pandas / psutil** | Solo en `benchmark.py`, como baseline de comparación y medición de RAM |
+| **matplotlib** | Solo en `make_figures.py`, que dibuja los gráficos de arriba desde las mismas consultas que corre el módulo de analítica |

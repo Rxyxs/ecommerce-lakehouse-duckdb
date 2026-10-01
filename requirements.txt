@@ -8,3 +8,7 @@ pydantic
 # y medicion de RAM por proceso) - no forman parte del pipeline de produccion.
 pandas
 psutil
+
+# Solo para src/make_figures.py (graficos del README) - tampoco forma parte del
+# pipeline de produccion.
+matplotlib
