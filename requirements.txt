@@ -1,14 +1,18 @@
-polars
 duckdb
+polars
 pyarrow
-pytest
 pydantic
-
-# Solo para src/benchmark.py (baseline de comparacion Pandas vs. Polars+DuckDB
-# y medicion de RAM por proceso) - no forman parte del pipeline de produccion.
+numpy
 pandas
-psutil
+pytest
 
-# Solo para src/make_figures.py (graficos del README) - tampoco forma parte del
-# pipeline de produccion.
+# Download of the Kaggle dataset (src/sources.py)
+kaggle
+
+# Benchmark (src/benchmark.py): pandas is the baseline, psutil measures memory and
+# PySpark is the distributed-engine comparison (needs a 64-bit Java 17)
+psutil
+pyspark
+
+# Figures (src/make_figures.py)
 matplotlib
