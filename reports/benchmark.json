@@ -1,0 +1,98 @@
+[
+  {
+    "engine": "pandas",
+    "scope": "october",
+    "peak_rss_gb": 3.65,
+    "status": "ok",
+    "startup_s": 0.0,
+    "cold_s": 4.12,
+    "warm_s": 3.842,
+    "top_category": "electronics",
+    "top_revenue": 176445577.86,
+    "top_buyers": 200031
+  },
+  {
+    "engine": "polars",
+    "scope": "october",
+    "peak_rss_gb": 0.44,
+    "status": "ok",
+    "startup_s": 0.0,
+    "cold_s": 0.433,
+    "warm_s": 0.146,
+    "top_category": "electronics",
+    "top_revenue": 176445577.86,
+    "top_buyers": 200031
+  },
+  {
+    "engine": "duckdb",
+    "scope": "october",
+    "peak_rss_gb": 0.19,
+    "status": "ok",
+    "startup_s": 0.0,
+    "cold_s": 0.681,
+    "warm_s": 0.234,
+    "top_category": "electronics",
+    "top_revenue": 176445577.86,
+    "top_buyers": 200031
+  },
+  {
+    "engine": "pyspark",
+    "scope": "october",
+    "peak_rss_gb": 3.87,
+    "status": "ok",
+    "startup_s": 2.774,
+    "cold_s": 7.837,
+    "warm_s": 1.435,
+    "top_category": "electronics",
+    "top_revenue": 176445577.86,
+    "top_buyers": 200031
+  },
+  {
+    "engine": "pandas",
+    "scope": "full",
+    "peak_rss_gb": 8.35,
+    "status": "ok",
+    "startup_s": 0.0,
+    "cold_s": 10.667,
+    "warm_s": 10.299,
+    "top_category": "electronics",
+    "top_revenue": 381695319.29,
+    "top_buyers": 404255
+  },
+  {
+    "engine": "polars",
+    "scope": "full",
+    "peak_rss_gb": 0.66,
+    "status": "ok",
+    "startup_s": 0.0,
+    "cold_s": 0.496,
+    "warm_s": 0.296,
+    "top_category": "electronics",
+    "top_revenue": 381695319.29,
+    "top_buyers": 404255
+  },
+  {
+    "engine": "duckdb",
+    "scope": "full",
+    "peak_rss_gb": 0.3,
+    "status": "ok",
+    "startup_s": 0.0,
+    "cold_s": 0.94,
+    "warm_s": 0.545,
+    "top_category": "electronics",
+    "top_revenue": 381695319.29,
+    "top_buyers": 404255
+  },
+  {
+    "engine": "pyspark",
+    "scope": "full",
+    "peak_rss_gb": 6.77,
+    "status": "ok",
+    "startup_s": 2.708,
+    "cold_s": 9.539,
+    "warm_s": 2.377,
+    "top_category": "electronics",
+    "top_revenue": 381695319.29,
+    "top_buyers": 404255
+  }
+]

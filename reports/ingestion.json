@@ -1,0 +1,11 @@
+{
+  "raw_events": 109950743,
+  "exact_duplicates": 130739,
+  "price_zero_or_negative": 256761,
+  "events_without_session": 12,
+  "events_without_category": 35413780,
+  "events_without_brand": 15331243,
+  "lake_events": 109819992,
+  "lake_files": 61,
+  "lake_bytes": 3819055777
+}

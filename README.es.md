@@ -1,200 +1,125 @@
 [ 🇺🇸 [Read in English](README.md) ] | [ 🇨🇱 Español ]
 
-# Modern Lakehouse Analytics Pipeline
+# Lakehouse de e-commerce sobre 110 millones de eventos reales
 
 ![Python](https://img.shields.io/badge/python-3.12-blue?logo=python&logoColor=white)
-![Polars](https://img.shields.io/badge/polars-⚡_rust--backed-CD792C)
 ![DuckDB](https://img.shields.io/badge/duckdb-embedded_OLAP-FFF000?logo=duckdb&logoColor=black)
-![PyArrow](https://img.shields.io/badge/pyarrow-columnar-2C5BB4)
-![Pydantic](https://img.shields.io/badge/pydantic-v2-E92063?logo=pydantic&logoColor=white)
+![Polars](https://img.shields.io/badge/polars-lazy-CD792C)
+![PySpark](https://img.shields.io/badge/pyspark-3.5-E25A1C?logo=apachespark&logoColor=white)
 ![Tests](https://github.com/Rxyxs/ecommerce-lakehouse-duckdb/actions/workflows/tests.yml/badge.svg)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
-Pipeline de datos moderno para ingesta y analítica de clickstream/e-commerce a escala, construido sobre un **lakehouse** de archivos Parquet particionados: Polars para ETL multihilo, PyArrow para el particionamiento columnar, y DuckDB como motor SQL analítico embebido que consulta el lake directamente sin cargarlo completo a RAM.
+Dos meses de clickstream de una tienda online multicategoría real, 110 millones de eventos en 14,7 GB de CSV, convertidos en un lake Parquet particionado por día con DuckDB y consultados en el lugar. Antes de reportar un solo embudo o cifra de ingresos, el pipeline revisa si el registro de eventos es estable, y en este dataset no lo es: **las compras dejan de registrarse durante 48 horas de alto tráfico a mediados de noviembre, y los eventos de carrito se registran bajo seis regímenes distintos**. Un embudo calculado sobre los dos meses juntos estaría midiendo el tracking, no a los clientes.
 
-## Caso de uso de negocio
+## Datos
 
-Un sitio de e-commerce genera eventos de clickstream (vistas de página, vistas de producto, carritos, checkouts, compras) a un volumen que ya no cabe cómodamente en un `pandas.DataFrame` en memoria. Este proyecto simula ese escenario end-to-end:
+[eCommerce behavior data from multi category store](https://www.kaggle.com/datasets/mkechinov/ecommerce-behavior-data-from-multi-category-store) (Kaggle, datos del proyecto REES46 / Open CDP), archivos `2019-Oct.csv` y `2019-Nov.csv`, descargados el 2026-10-08. Cada fila es un evento `view`, `cart` o `purchase` con producto, categoría, marca, precio, usuario y sesión.
 
-1. **Genera** 100,000+ eventos sintéticos con un embudo de conversión realista.
-2. **Ingiere** esos eventos: limpia, valida el contrato de esquema, y los persiste como un Data Lake Parquet particionado por fecha.
-3. **Analiza** el lake con SQL directo sobre Parquet (DuckDB) para responder preguntas de negocio: ¿dónde se cae la gente en el embudo? ¿qué cohortes retienen mejor? ¿quiénes son los clientes de mayor valor?
-4. **Compara** el enfoque contra un pipeline Pandas tradicional, midiendo tiempo y memoria.
+**Licencia: "copyright-authors".** Los datos crudos no están en este repositorio ni se redistribuyen; `src/sources.py` los descarga con tu propio token de Kaggle. Aquí solo se publican agregados calculados a partir de ellos (`reports/*.json` y las figuras).
 
-## Arquitectura
+## Pipeline
 
 ```
-┌───────────────────────────┐
-│ synthetic_clickstream.py  │   genera eventos (page_view -> ... -> purchase)
-└─────────────┬──────────────┘
-              │
-              ▼
-   data/raw/clickstream_events.parquet   (sin particionar, ~100k+ filas)
-              │
-              ▼
-┌───────────────────────────┐
-│      ingestion.py          │   Polars: dedup, sanidad numérica, columnas de partición
-│  (contrato Pydantic v2)    │   PyArrow: escritura particionada Hive-style
-└─────────────┬──────────────┘
-              │
-              ▼
-   data/lakehouse/events/
-   ├── year=2025/month=01/day=01/part-0.parquet
-   ├── year=2025/month=01/day=02/part-0.parquet
-   └── ...                                  (1 archivo Parquet por día)
-              │
-              ▼
-┌───────────────────────────┐
-│       analytics.py         │   DuckDB: SQL directo sobre Parquet, sin cargar todo a RAM
-└─────────────┬──────────────┘
-              │
-   ┌──────────┼───────────┬───────────────┐
-   ▼          ▼            ▼               ▼
- Embudo   Cohortes/     LTV top          Ingresos
- conv.    retención     clientes         por categoría
+2019-Oct.csv + 2019-Nov.csv  (14,7 GB)
+        │  src/sources.py — descarga por la API de Kaggle
+        ▼
+src/lakehouse/ingestion.py — DuckDB transmite CSV → Parquet, limpieza en SQL
+        │  duplicados exactos eliminados, precios <= 0 anulados, eventos sin sesión
+        │  eliminados, top_category derivada, contrato pydantic sobre una muestra
+        ▼
+data/lakehouse/events/year=2019/month=10/day=01/…   (61 particiones, ZSTD)
+        │
+        ▼
+src/lakehouse/analytics.py — huecos de captura → regímenes de tracking → embudos,
+        │                     ingresos, concentración, retención (todo SQL sobre el lake)
+        ▼
+reports/results.json → src/make_figures.py → outputs/figures/
+src/benchmark.py — la misma consulta en pandas, Polars, DuckDB y PySpark
 ```
 
-## Estructura del proyecto
+Construir el lake desde los dos CSV toma unos 3,5 minutos en un PC de 8 núcleos sin cargar los datos en memoria; cada consulta analítica de abajo corre en menos de un minuto sobre los 110 millones de filas.
 
-```
-ecommerce-lakehouse-duckdb/
-├── data/
-│   ├── raw/                          # clickstream_events.parquet (generado, no versionado)
-│   └── lakehouse/                    # events/year=/month=/day=/*.parquet (generado, no versionado)
-├── src/
-│   ├── generators/
-│   │   └── synthetic_clickstream.py  # Genera 100,000+ eventos de clickstream sintéticos
-│   ├── lakehouse/
-│   │   ├── ingestion.py              # Polars + PyArrow: limpieza, contrato de esquema, particionado
-│   │   └── analytics.py              # DuckDB: embudo, cohortes, LTV, ingresos por categoría
-│   ├── benchmark.py                  # Pandas vs. Polars vs. DuckDB: tiempo y RAM
-│   └── make_figures.py               # Gráficos del README, desde las mismas consultas
-├── tests/
-│   └── test_lakehouse.py             # Pruebas de esquema y métricas (pytest)
-├── .github/workflows/tests.yml       # CI: corre pytest en cada push/PR
-├── requirements.txt
-└── README.md
-```
+## Qué contienen los datos crudos
 
-## Dataset sintético
+| Revisión | Eventos |
+|---|---:|
+| Eventos crudos | 109.950.743 |
+| Filas duplicadas exactas (eliminadas) | 130.739 |
+| Precio cero o negativo (precio anulado, evento conservado) | 256.761 |
+| Sin id de sesión (eliminados) | 12 |
+| Sin `category_code` (conservados como `uncoded`) | 35.413.780 |
+| **Eventos en el lake** | **109.819.992** |
 
-`src/generators/synthetic_clickstream.py` simula 8,000 usuarios repartidos en tres segmentos de compromiso (`one_time`, `casual`, `loyal`, con distinto número de sesiones cada uno) a lo largo de ~90 días. Cada sesión progresa por un embudo con caída de conversión realista en cada paso:
+Un tercio de los eventos no tiene código de categoría. La descripción del dataset dice que la tienda solo codifica las categorías "relevantes"; se conservan como grupo propio `uncoded` en vez de descartarlos, porque llevan el 10,2% de los ingresos.
 
-```
-page_view -> product_view -> add_to_cart -> checkout_start -> purchase
-  100%          ~60%             ~38%            ~55%            ~65%
-                                                            (condicional al paso anterior)
-```
+## Hallazgo 1: faltan compras durante cuatro días
 
-Con la semilla por defecto esto produce **~112,000 eventos** (por encima del mínimo de 100,000 pedido), con columnas: `event_id`, `user_id`, `session_id`, `event_type`, `event_timestamp`, `product_id`, `category`, `price`, `quantity`, `revenue`, `device_type`, `country`, `referrer_source`.
+![Vistas y compras diarias, con los huecos de captura sombreados](outputs/figures/daily_capture.png)
 
-## Módulos
+Una hora de esta tienda con al menos 5.000 eventos y cero compras no es una hora tranquila; las horas normales más bajas igual registran compras. Con esa regla, **48 horas entre el 14 y el 17 de noviembre son huecos de captura**: el 15 de noviembre tiene 468 mil eventos de carrito y ninguna compra, el 16 registra compras solo entre las 08:00 y las 15:00 UTC, y el 17 solo desde las 03:00. Esos días además tienen 3,5 veces las vistas diarias normales: hubo un evento de ventas real y el registro de compras falló durante él.
 
-### `src/lakehouse/ingestion.py`
-- **Limpieza (Polars)**: deduplica por `event_id`, descarta filas sin `user_id`/`event_timestamp`, anula (no inventa) `price`/`quantity`/`revenue` negativos.
-- **Contrato de esquema (Pydantic v2)**: `ClickstreamEventContract` valida que las columnas requeridas existan, y valida por tipo una muestra de filas (no todas — a este volumen, validar fila por fila contradice el propósito de un pipeline de alto rendimiento). Una violación de contrato lanza una excepción: indica un bug de ingestión, no un dato de negocio inválido a aislar.
-- **Particionado (PyArrow)**: escribe el resultado como Parquet Hive-partitioned (`year=/month=/day=`), con `existing_data_behavior="delete_matching"` para que reprocesar sea idempotente.
+La consecuencia es que el "día récord" de estos datos, el 17 de noviembre con 57,8 millones en ingresos (8 veces la mediana diaria de 7,16 millones), no se puede leer como tal: una parte es demanda, otra pueden ser compras de las horas faltantes registradas tarde, y los datos no permiten separarlas. Los cuatro días quedan marcados y fuera de los embudos, de la participación por categoría y de la concentración.
 
-### `src/lakehouse/analytics.py`
-Cuatro consultas de negocio, todas SQL puro ejecutado por DuckDB directamente sobre los archivos Parquet (`read_parquet(..., hive_partitioning=true)`):
-- `conversion_funnel` — sesiones que alcanzan cada paso del embudo.
-- `cohort_retention` — usuarios activos por mes, agrupados por el mes de su primer evento.
-- `customer_ltv` — top clientes por ingresos totales de compra.
-- `revenue_by_category` — ingresos y ticket promedio por categoría.
+## Hallazgo 2: el tracking de carritos cambia seis veces
 
-![Embudo de conversión y sus tasas por paso contra el diseño del generador](outputs/figures/conversion_funnel.png)
+![Eventos de carrito por compra con los regímenes detectados](outputs/figures/cart_regimes.png)
 
-#### El embudo mide algo levemente distinto de lo que configura el generador
+Las compras diarias son planas en los dos meses, pero los eventos de carrito por compra saltan de un día para otro: 0,89, luego 1,49, 0,80, 1,49, 0,80 y finalmente 2,87 desde el 8 de noviembre. Una segmentación binaria sobre el logaritmo del ratio diario encuentra exactamente esos seis regímenes (un corte se acepta solo si separa niveles que difieren al menos 30%). Los clientes no cambian sus hábitos de carrito de un día para otro, y la alternancia entre dos niveles parece una segunda fuente de eventos de carrito que se enciende y se apaga.
 
-Entran 37.141 sesiones y compran 3.037, una tasa punta a punta de 8,2%. Tres de las cuatro tasas por paso caen sobre los parámetros del generador: 86,5% contra 86,7% implícito, 54,4% contra 55%, 65,5% contra 65%. La segunda no — lee **26,5% donde el generador aplica 38%**.
+![Embudo de sesiones por régimen de tracking](outputs/figures/funnel_by_regime.png)
 
-No es un bug ni de la consulta ni del generador. `_simulate_session` emite 0–2 `product_view` de navegación *antes* de la rama del embudo, independientes de la probabilidad del funnel:
+El embudo por sesión muestra el efecto. Hasta el 7 de noviembre, **entre el 44% y el 67% de las sesiones con compra no tienen ningún evento de carrito**, según el régimen; desde el 8 de noviembre es el 1,2%. El paso de carrito recién se volvió un paso confiable del embudo el 8 de noviembre. Antes de eso, una tasa de conversión "vista → carrito → compra" habría dividido por un número que el tracking no estaba registrando.
 
-```python
-emit("page_view")
-for _ in range(rng.randint(0, 2)):        # navegación, fuera del embudo
-    emit("product_view", product=rng.choice(catalog))
-if rng.random() < 0.60:                   # el product_view propio del embudo
-    emit("product_view", product=product)
-    if rng.random() < 0.38:
-        emit("add_to_cart", product=product)
-```
+## Hallazgo 3: quién compra
 
-Entonces una sesión alcanza `product_view` por navegación o por el embudo: P = 1 − (1/3)(1 − 0,60) = **86,7%**, que es lo que mide el primer paso. Pero `add_to_cart` solo es alcanzable por la rama del embudo: P = 0,60 × 0,38 = **22,8% de todas las sesiones**, y el lake da 8.514/37.141 = 22,9%. Los dos números están exactamente bien. La tasa de 26,5% es baja porque su *denominador* incluye sesiones que solo navegaron y nunca estuvieron en el embudo.
+![Ingresos por categoría y concentración de compradores](outputs/figures/revenue_concentration.png)
 
-Ese es el modo de falla corriente del análisis de embudos sobre clickstream real: un tipo de evento que se dispara dentro y fuera del embudo corrompe la tasa del paso que lo usa de denominador, mientras deja todos los conteos absolutos correctos. La corrección es definir el embudo sobre sesiones con intención de compra en vez de sobre todas — algo que los eventos crudos permiten, y que esta consulta deliberadamente no hace, para que la distinción quede visible.
+- **Electrónica es el 76,9% de los ingresos**, luego `uncoded` (10,2%), electrodomésticos (5,6%) y computadores (4,8%).
+- **El gasto está concentrado**: el 1% superior de 589.820 compradores explica el 21,5% de los ingresos y el 10% superior el 57,7% (Gini 0,70).
+- **El 46,4% de los visitantes de octubre vuelve en noviembre**; de los compradores de octubre, el 26,3% vuelve a comprar en noviembre. Esa segunda cifra está sesgada a la baja por los huecos de noviembre y se reporta como cota inferior.
+- El 35,7% de los compradores compra en más de una sesión.
 
-![Ingresos y volumen de órdenes por categoría](outputs/figures/revenue_by_category.png)
+## Benchmark de motores
 
-Los ingresos están concentrados: Electronics es 58,7% del total con 549 compras, el segundo conteo de órdenes más bajo. Las compras son casi planas entre las seis categorías (449–549), así que el ranking de ingresos es casi enteramente ticket promedio — $1.255 de Electronics contra $52 de Books, una brecha de 24x que viene directo de los rangos de precio por categoría del generador.
+`src/benchmark.py` corre una consulta, ingresos, compras y compradores distintos por categoría sobre las compras, en cada motor y cada uno en un subproceso nuevo. La memoria es el pico residente de ese proceso más sus hijos, muestreado cada 50 ms, así que incluye la JVM que levanta PySpark. Una corrida en frío y luego la mejor de tres en caliente; el arranque de la sesión de Spark (unos 2,7 s) se mide aparte. Los cuatro motores dan la misma respuesta al centavo.
 
-![Mapa de calor de retención por cohorte](outputs/figures/cohort_retention.png)
+![Benchmark de motores](outputs/figures/engine_benchmark.png)
 
-La consulta de cohortes funciona y las tres cohortes suman exactamente los 8.000 usuarios generados. El *resultado*, en cambio, es un chequeo sobre los datos más que un hallazgo: la cohorte de enero va 100% → 49% → 50%, subiendo en el mes 2. La retención real decae. Acá no, porque el generador sortea las sesiones de cada usuario de forma uniforme sobre toda la ventana de 90 días, así que un usuario tiene la misma probabilidad de estar activo en cualquier mes. No hay churn en estos datos que encontrar, y lo honesto es decirlo en vez de presentar una curva plana como un insight de retención.
+| Alcance | Motor | Frío (s) | Caliente (s) | Memoria pico (GB) |
+|---|---|---:|---:|---:|
+| octubre | pandas | 4,12 | 3,84 | 3,65 |
+| octubre | polars | 0,43 | 0,15 | 0,44 |
+| octubre | duckdb | 0,68 | 0,23 | 0,19 |
+| octubre | pyspark | 7,84 | 1,44 | 3,87 |
+| completo | pandas | 10,67 | 10,30 | 8,35 |
+| completo | polars | 0,50 | 0,30 | 0,66 |
+| completo | duckdb | 0,94 | 0,55 | 0,30 |
+| completo | pyspark | 9,54 | 2,38 | 6,77 |
 
-### `src/benchmark.py`
-Corre la misma agregación (ingresos por categoría, solo compras) con Pandas, Polars y DuckDB sobre el mismo archivo Parquet, y mide tiempo (`time.perf_counter`) y delta de memoria RSS del proceso (`psutil`).
+- **Polars y DuckDB responden en bastante menos de un segundo sobre 110 millones de filas**, porque ambos leen solo las cuatro columnas necesarias y empujan el filtro de compras al escaneo del Parquet. Polars es más rápido en caliente (0,30 s contra 0,55 s en el lake completo); DuckDB usa la mitad de memoria (0,30 GB contra 0,66 GB).
+- **pandas es 35 veces más lento que Polars en el lake completo** y llega a 8,35 GB: tiene que materializar cada fila de las cuatro columnas como objetos de Python antes de poder filtrar. Su memoria crece con las filas que lee: 3,65 GB para octubre y 8,35 GB para los dos meses.
+- **PySpark es el más lento de los tres motores columnares aquí** y llega a 6,77 GB incluida su JVM. Es lo esperable en una sola máquina: el costo de Spark es coordinación y serialización, que solo se paga cuando los datos ya no caben en un nodo. Este benchmark muestra el piso en un nodo, no el caso a favor de Spark.
+- La consulta es selectiva (las compras son el 1,5% de los eventos), lo que favorece a los motores con filter pushdown. Una consulta que deba leer todas las filas, o un join grande, es otra prueba y podría ordenar distinto a Polars, DuckDB y Spark; no se corrió aquí.
 
-## Resultados del benchmark
-
-Corrida real sobre 112.608 eventos:
-
-![Benchmark de motores: tiempo y memoria](outputs/figures/engine_benchmark.png)
-
-| Motor | Frío: tiempo (s) | Frío: Δ RSS (MB) | Tibio: mediana tiempo (s) | Tibio: mediana Δ RSS (MB) |
-|-------|-----------------:|-----------------:|--------------------------:|--------------------------:|
-| DuckDB |           0,0182 |              8,7 |                    0,0155 |                       0,4 |
-| Polars |           0,0212 |             43,1 |                    0,0147 |                      12,0 |
-| Pandas |           0,1116 |             87,6 |                    0,0776 |                      21,3 |
-
-**El resultado que sobrevive a la repetición es que tanto DuckDB como Polars son ~5x más rápidos que pandas.** La diferencia entre DuckDB y Polars no es algo que este benchmark pueda dirimir: medida en frío, DuckDB va adelante en ambas dimensiones; medida en tibio sobre 7 corridas, Polars tiene la mediana más baja y los dos rangos se solapan. Sobre una sola agregación de 112k filas los dos son la misma clase de motor, y declarar un ganador entre ellos sería leer ruido.
-
-Contra pandas el mecanismo sí es real y aparece de las dos formas: DuckDB agrega sobre el escaneo de Parquet sin materializar el archivo como objeto Python, y Polars sí lo materializa pero hace el trabajo en un motor multihilo en Rust.
-
-**Sobre la columna de memoria — son dos números distintos, y la distinción importa.** El delta de RSS está medido en frío (una corrida en un intérprete recién lanzado, así que el delta incluye la asignación) y en tibio (la mediana de repeticiones dentro de un mismo proceso). Difieren ~10x en DuckDB, porque después de la primera corrida el asignador ya tiene las páginas y el delta de la segunda no mide casi nada. El número tibio no es una medición más chica de lo mismo; es una medición de otra cosa, y **la columna fría es la que hay que citar**.
-
-La columna fría viene de `src/make_figures.py`, que lanza un intérprete fresco por motor. `src/benchmark.py` en cambio corre los tres secuencialmente en un solo proceso, así que solo el primero que mide está genuinamente frío; en la práctica sus números quedan cerca de la columna fría (6,5 / 42,8 / 87,8 MB en la corrida verificada acá) porque cada motor asigna sus propias estructuras, pero eso es una propiedad de esta carga, no una garantía.
-
-Ninguna de las dos columnas es profiling de pico de memoria, así que leé ambas como órdenes de magnitud y no como costos precisos.
-
-## Instalación
+## Reproducir
 
 ```bash
 python -m venv .venv
-source .venv/bin/activate      # En Windows: .venv\Scripts\activate
+.venv\Scripts\activate           # Linux/macOS: source .venv/bin/activate
 pip install -r requirements.txt
+
+python -m src.sources              # requiere un token de la API de Kaggle en ~/.kaggle
+python -m src.lakehouse.ingestion  # construye el lake, escribe reports/ingestion.json
+python -m src.main                 # todas las métricas -> reports/results.json -> figuras
+python -m src.benchmark            # opcional, ~15 min; PySpark requiere JAVA_HOME
+pytest
 ```
 
-## Uso
+Los tests corren sobre un fixture de 12 filas en el formato de REES46, así que el CI no necesita el dataset ni Java. `tests/test_readme.py` verifica las cifras citadas en este README contra `reports/results.json`.
 
-```bash
-# 1. Generar el dataset sintético (data/raw/clickstream_events.parquet)
-python -m src.generators.synthetic_clickstream
+## Limitaciones
 
-# 2. Ingerir: limpiar, validar contrato, escribir el lake particionado
-python -m src.lakehouse.ingestion
-
-# 3. Correr las consultas analíticas sobre el lake
-python -m src.lakehouse.analytics
-
-# 4. Comparar Pandas vs. Polars vs. DuckDB
-python -m src.benchmark
-
-# 5. Redibujar los gráficos del README (repite el benchmark en frío y en tibio)
-python -m src.make_figures
-
-# Pruebas unitarias
-pytest tests/
-```
-
-## Stack técnico
-
-| Herramienta | Rol |
-|---|---|
-| **Polars** | ETL — limpieza y transformación multihilo respaldada en Rust |
-| **DuckDB** | Motor SQL analítico embebido, consulta Parquet sin cargarlo a RAM |
-| **PyArrow** | Escritura de Parquet particionado (Hive-style) |
-| **Pydantic v2** | Contrato de esquema del evento de clickstream |
-| **pytest** | Pruebas unitarias de limpieza, contrato de esquema y métricas |
-| **pandas / psutil** | Solo en `benchmark.py`, como baseline de comparación y medición de RAM |
-| **matplotlib** | Solo en `make_figures.py`, que dibuja los gráficos de arriba desde las mismas consultas que corre el módulo de analítica |
+- La regla de huecos es un umbral: un hueco de menos de una hora, o en una hora de poco tráfico, pasaría inadvertido. Está ajustada al volumen de esta tienda.
+- La detección de regímenes usa ratios diarios; un cambio de tracking a mitad de día queda fechado en el borde de día más cercano.
+- Los precios están en la moneda de la tienda tal como se publicaron, sin conversión ni deflactación.
+- Las sesiones son los ids que asignó la tienda; no se re-sesionizó por inactividad.

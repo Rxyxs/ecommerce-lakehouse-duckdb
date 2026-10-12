@@ -1,200 +1,125 @@
 [ 🇺🇸 English ] | [ 🇨🇱 [Leer en Español](README.es.md) ]
 
-# Modern Lakehouse Analytics Pipeline
+# E-commerce Lakehouse on 110 Million Real Events
 
 ![Python](https://img.shields.io/badge/python-3.12-blue?logo=python&logoColor=white)
-![Polars](https://img.shields.io/badge/polars-⚡_rust--backed-CD792C)
 ![DuckDB](https://img.shields.io/badge/duckdb-embedded_OLAP-FFF000?logo=duckdb&logoColor=black)
-![PyArrow](https://img.shields.io/badge/pyarrow-columnar-2C5BB4)
-![Pydantic](https://img.shields.io/badge/pydantic-v2-E92063?logo=pydantic&logoColor=white)
+![Polars](https://img.shields.io/badge/polars-lazy-CD792C)
+![PySpark](https://img.shields.io/badge/pyspark-3.5-E25A1C?logo=apachespark&logoColor=white)
 ![Tests](https://github.com/Rxyxs/ecommerce-lakehouse-duckdb/actions/workflows/tests.yml/badge.svg)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
-A modern data pipeline for ingesting and analyzing clickstream/e-commerce events at scale, built on a **lakehouse** of partitioned Parquet files: Polars for multithreaded ETL, PyArrow for columnar partitioning, and DuckDB as the embedded analytical SQL engine that queries the lake directly without loading it into RAM.
+Two months of clickstream from a real multi-category online store, 110 million events in 14.7 GB of CSV, turned into a day-partitioned Parquet lake with DuckDB and queried in place. Before reporting a single funnel or revenue figure, the pipeline checks whether the logging itself is stable, and in this dataset it is not: **purchases go unrecorded for 48 busy hours in mid-November, and cart events are tracked under six different regimes**. A funnel pooled over the two months would be measuring the tracking, not the customers.
 
-## Business use case
+## Data
 
-An e-commerce site generates clickstream events (page views, product views, carts, checkouts, purchases) at a volume that no longer fits comfortably in an in-memory `pandas.DataFrame`. This project simulates that scenario end to end:
+[eCommerce behavior data from multi category store](https://www.kaggle.com/datasets/mkechinov/ecommerce-behavior-data-from-multi-category-store) (Kaggle, data from the REES46 / Open CDP project), files `2019-Oct.csv` and `2019-Nov.csv`, downloaded on 2026-10-08. Each row is one `view`, `cart` or `purchase` event with product, category, brand, price, user and session.
 
-1. **Generates** 100,000+ synthetic events with a realistic conversion funnel.
-2. **Ingests** those events: cleans them, validates the schema contract, and persists them as a Parquet data lake partitioned by date.
-3. **Analyzes** the lake with SQL run directly over Parquet (DuckDB) to answer business questions: where do people drop out of the funnel? which cohorts retain best? who are the highest-value customers?
-4. **Compares** the approach against a traditional Pandas pipeline, measuring time and memory.
+**License: "copyright-authors".** The raw data is not in this repository and is not redistributed; `src/sources.py` downloads it with your own Kaggle token. Only aggregates computed from it are published here (`reports/*.json`, the figures).
 
-## Architecture
+## Pipeline
 
 ```
-┌───────────────────────────┐
-│ synthetic_clickstream.py  │   generates events (page_view -> ... -> purchase)
-└─────────────┬──────────────┘
-              │
-              ▼
-   data/raw/clickstream_events.parquet   (unpartitioned, ~100k+ rows)
-              │
-              ▼
-┌───────────────────────────┐
-│      ingestion.py          │   Polars: dedup, numeric sanity, partition columns
-│  (Pydantic v2 contract)    │   PyArrow: Hive-style partitioned write
-└─────────────┬──────────────┘
-              │
-              ▼
-   data/lakehouse/events/
-   ├── year=2025/month=01/day=01/part-0.parquet
-   ├── year=2025/month=01/day=02/part-0.parquet
-   └── ...                                  (1 Parquet file per day)
-              │
-              ▼
-┌───────────────────────────┐
-│       analytics.py         │   DuckDB: SQL straight over Parquet, nothing loaded into RAM
-└─────────────┬──────────────┘
-              │
-   ┌──────────┼───────────┬───────────────┐
-   ▼          ▼            ▼               ▼
-Conversion  Cohorts /    Top-LTV         Revenue
- funnel     retention    customers      by category
+2019-Oct.csv + 2019-Nov.csv  (14.7 GB)
+        │  src/sources.py — Kaggle API download
+        ▼
+src/lakehouse/ingestion.py — DuckDB streams CSV → Parquet, cleaning in SQL
+        │  exact duplicates removed, prices <= 0 nulled, no-session events dropped,
+        │  top_category derived, pydantic contract checked on a sample
+        ▼
+data/lakehouse/events/year=2019/month=10/day=01/…   (61 partitions, ZSTD)
+        │
+        ▼
+src/lakehouse/analytics.py — capture gaps → tracking regimes → funnels, revenue,
+        │                     concentration, retention (all SQL over the lake)
+        ▼
+reports/results.json → src/make_figures.py → outputs/figures/
+src/benchmark.py — same query in pandas, Polars, DuckDB and PySpark
 ```
 
-## Project structure
+Building the lake from the two CSVs takes about 3.5 minutes on an 8-core desktop and never holds the data in memory; every analytical query below runs in under a minute over all 110 million rows.
 
-```
-ecommerce-lakehouse-duckdb/
-├── data/
-│   ├── raw/                          # clickstream_events.parquet (generated, untracked)
-│   └── lakehouse/                    # events/year=/month=/day=/*.parquet (generated, untracked)
-├── src/
-│   ├── generators/
-│   │   └── synthetic_clickstream.py  # Generates 100,000+ synthetic clickstream events
-│   ├── lakehouse/
-│   │   ├── ingestion.py              # Polars + PyArrow: cleaning, schema contract, partitioning
-│   │   └── analytics.py              # DuckDB: funnel, cohorts, LTV, revenue by category
-│   ├── benchmark.py                  # Pandas vs. Polars vs. DuckDB: time and RAM
-│   └── make_figures.py               # README figures, from the same queries
-├── tests/
-│   └── test_lakehouse.py             # Schema and metric tests (pytest)
-├── .github/workflows/tests.yml       # CI: runs pytest on every push/PR
-├── requirements.txt
-└── README.md
-```
+## What the raw data contains
 
-## Synthetic dataset
+| Check | Events |
+|---|---:|
+| Raw events | 109,950,743 |
+| Exact duplicate rows (removed) | 130,739 |
+| Price zero or negative (price nulled, event kept) | 256,761 |
+| No session id (removed) | 12 |
+| No `category_code` (kept as `uncoded`) | 35,413,780 |
+| **Events in the lake** | **109,819,992** |
 
-`src/generators/synthetic_clickstream.py` simulates 8,000 users split across three engagement segments (`one_time`, `casual`, `loyal`, each with a different session count) over roughly 90 days. Every session walks a funnel with a realistic conversion drop at each step:
+A third of events have no category code. The dataset description says the store only codes "meaningful" categories; they are kept and shown as their own `uncoded` group rather than dropped, since they carry 10.2% of revenue.
 
-```
-page_view -> product_view -> add_to_cart -> checkout_start -> purchase
-  100%          ~60%             ~38%            ~55%            ~65%
-                                                          (conditional on the previous step)
-```
+## Finding 1: purchases are missing for four days
 
-With the default seed this produces **~112,000 events** (above the 100,000 minimum asked for), with columns: `event_id`, `user_id`, `session_id`, `event_type`, `event_timestamp`, `product_id`, `category`, `price`, `quantity`, `revenue`, `device_type`, `country`, `referrer_source`.
+![Daily views and purchases, with capture gaps shaded](outputs/figures/daily_capture.png)
 
-## Modules
+An hour of this store with at least 5,000 events and zero purchases is not a quiet hour; the quietest normal hours still record purchases. By that rule, **48 hours on November 14–17 are capture gaps**: November 15 has 468 thousand cart events and not one purchase, November 16 records purchases only between 08:00 and 15:00 UTC, and November 17 records them only from 03:00. Those days also carry 3.5 times the normal daily views, so a real sales event happened and the purchase log failed during it.
 
-### `src/lakehouse/ingestion.py`
-- **Cleaning (Polars)**: deduplicates on `event_id`, drops rows missing `user_id`/`event_timestamp`, and nulls out (rather than invents) negative `price`/`quantity`/`revenue`.
-- **Schema contract (Pydantic v2)**: `ClickstreamEventContract` validates that the required columns exist, and type-validates a sample of rows rather than all of them — at this volume, row-by-row validation defeats the purpose of a high-throughput pipeline. A contract violation raises: it signals an ingestion bug, not an invalid business record to quarantine.
-- **Partitioning (PyArrow)**: writes the result as Hive-partitioned Parquet (`year=/month=/day=`), with `existing_data_behavior="delete_matching"` so reprocessing is idempotent.
+The consequence is that the "record day" in this data, November 17 at 57.8 million in revenue (8 times the 7.16 million daily median), cannot be read as one: some of it is demand, some of it may be purchases from the missing hours landing late, and the data cannot separate the two. The four days are flagged and excluded from the funnels, the revenue shares and the concentration figures.
 
-### `src/lakehouse/analytics.py`
-Four business queries, all pure SQL executed by DuckDB directly against the Parquet files (`read_parquet(..., hive_partitioning=true)`):
-- `conversion_funnel` — sessions reaching each funnel step.
-- `cohort_retention` — active users per month, grouped by the month of their first event.
-- `customer_ltv` — top customers by total purchase revenue.
-- `revenue_by_category` — revenue and average ticket per category.
+## Finding 2: cart tracking changes six times
 
-![Conversion funnel and its step rates against the generator's design](outputs/figures/conversion_funnel.png)
+![Cart events per purchase with detected regimes](outputs/figures/cart_regimes.png)
 
-#### The funnel measures something slightly different from what the generator configures
+Daily purchases are flat for the two months, but cart events per purchase jump from one day to the next: 0.89, then 1.49, 0.80, 1.49, 0.80 and finally 2.87 from November 8. Binary segmentation on the daily log ratio finds exactly those six regimes (a split is kept only while it separates levels at least 30% apart). Customers do not change their basket habits overnight, and the alternation between two levels looks like a second cart-event source being switched on and off.
 
-37,141 sessions enter and 3,037 purchase, an 8.2% end-to-end rate. Three of the four step rates land on the generator's parameters: 86.5% against 86.7% implied, 54.4% against 55%, 65.5% against 65%. The second does not — it reads **26.5% where the generator applies 38%**.
+![Session funnel per tracking regime](outputs/figures/funnel_by_regime.png)
 
-This is not a bug in either the query or the generator. `_simulate_session` emits 0–2 browsing `product_view` events *before* the funnel branch, independently of the funnel probability:
+The session funnel shows what that does. Up to November 7, **44% to 67% of purchasing sessions contain no cart event at all**, depending on the regime; from November 8 it is 1.2%. The cart step only became a reliable funnel step on November 8. Before that, a "view → cart → purchase" conversion rate would have been dividing by a number the tracking was not recording.
 
-```python
-emit("page_view")
-for _ in range(rng.randint(0, 2)):        # browsing, outside the funnel
-    emit("product_view", product=rng.choice(catalog))
-if rng.random() < 0.60:                   # the funnel's own product_view
-    emit("product_view", product=product)
-    if rng.random() < 0.38:
-        emit("add_to_cart", product=product)
-```
+## Finding 3: who buys
 
-So a session reaches `product_view` either by browsing or through the funnel: P = 1 − (1/3)(1 − 0.60) = **86.7%**, which is what the first step measures. But `add_to_cart` is reachable only through the funnel branch: P = 0.60 × 0.38 = **22.8% of all sessions**, and the lake gives 8,514/37,141 = 22.9%. Both numbers are exactly right. The 26.5% step rate is low because its *denominator* includes browsing-only sessions that were never in the funnel at all.
+![Revenue by category and buyer concentration](outputs/figures/revenue_concentration.png)
 
-That is the ordinary failure mode of funnel analysis on real clickstream: an event type that fires both inside and outside the funnel corrupts the step rate that uses it as a denominator, while leaving every absolute count correct. The fix is to define the funnel over sessions with purchase intent rather than over all sessions — which the raw events support, and which this query deliberately does not do, so the distinction stays visible.
+- **Electronics is 76.9% of revenue**, then `uncoded` (10.2%), appliances (5.6%) and computers (4.8%).
+- **Spending is concentrated**: the top 1% of 589,820 buyers account for 21.5% of revenue and the top 10% for 57.7% (Gini 0.70).
+- **46.4% of October's visitors come back in November**; of October's buyers, 26.3% buy again in November. The second number is biased low by the November gaps and is reported as a lower bound.
+- 35.7% of buyers purchase in more than one session.
 
-![Revenue and order volume by category](outputs/figures/revenue_by_category.png)
+## Engine benchmark
 
-Revenue is concentrated: Electronics is 58.7% of the total on 549 purchases, the second-smallest order count. Purchases are nearly flat across the six categories (449–549), so the revenue ranking is almost entirely average order value — $1,255 for Electronics against $52 for Books, a 24x spread that comes straight from the generator's per-category price ranges.
+`src/benchmark.py` runs one query, revenue, purchases and distinct buyers per category over purchases only, in each engine, each in a fresh subprocess. Memory is the peak resident size of that process plus its children, sampled every 50 ms, so it includes the JVM PySpark starts. One cold run, then the best of three warm runs; Spark's session start-up (about 2.7 s) is timed separately. All four engines return the same answer to the cent.
 
-![Cohort retention heatmap](outputs/figures/cohort_retention.png)
+![Engine benchmark](outputs/figures/engine_benchmark.png)
 
-The cohort query works and the three cohorts sum to exactly the 8,000 users generated. The *result*, though, is a check on the data rather than a finding: the January cohort goes 100% → 49% → 50%, rising in month 2. Real retention decays. It does not here because the generator draws each user's sessions uniformly across the whole 90-day window, so a user is equally likely to be active in any month. There is no churn in this data to find, and the honest thing is to say so rather than present a flat curve as a retention insight.
+| Scope | Engine | Cold (s) | Warm (s) | Peak memory (GB) |
+|---|---|---:|---:|---:|
+| october | pandas | 4.12 | 3.84 | 3.65 |
+| october | polars | 0.43 | 0.15 | 0.44 |
+| october | duckdb | 0.68 | 0.23 | 0.19 |
+| october | pyspark | 7.84 | 1.44 | 3.87 |
+| full | pandas | 10.67 | 10.30 | 8.35 |
+| full | polars | 0.50 | 0.30 | 0.66 |
+| full | duckdb | 0.94 | 0.55 | 0.30 |
+| full | pyspark | 9.54 | 2.38 | 6.77 |
 
-### `src/benchmark.py`
-Runs the same aggregation (revenue by category, purchases only) with Pandas, Polars and DuckDB over the same Parquet file, measuring wall time (`time.perf_counter`) and the process's RSS memory delta (`psutil`).
+- **Polars and DuckDB answer in well under a second over 110 million rows**, because both read only the four needed columns and push the purchase filter into the Parquet scan. Polars is faster warm (0.30 s against 0.55 s on the full lake); DuckDB uses half the memory (0.30 GB against 0.66 GB).
+- **pandas is 35 times slower than Polars on the full lake** and peaks at 8.35 GB: it has to materialise every row of the four columns as Python objects before it can filter. Its memory grows with the rows it reads, 3.65 GB for October and 8.35 GB for both months.
+- **PySpark is the slowest of the three columnar engines here** and peaks at 6.77 GB including its JVM. That is the expected result on one machine: Spark's cost is coordination and serialisation that only pays off once the data does not fit on one node. This benchmark shows the single-node floor, not Spark's case.
+- The query is selective (purchases are 1.5% of events), which favours engines with filter pushdown. A query that must read every row, or a large join, is a different test and could order Polars, DuckDB and Spark differently; it was not run here.
 
-## Benchmark results
-
-A real run over 112,608 events:
-
-![Engine benchmark: wall time and memory](outputs/figures/engine_benchmark.png)
-
-| Engine | Cold: time (s) | Cold: Δ RSS (MB) | Warm: median time (s) | Warm: median Δ RSS (MB) |
-|--------|---------------:|-----------------:|----------------------:|------------------------:|
-| DuckDB |         0.0182 |              8.7 |                0.0155 |                     0.4 |
-| Polars |         0.0212 |             43.1 |                0.0147 |                    12.0 |
-| Pandas |         0.1116 |             87.6 |                0.0776 |                    21.3 |
-
-**The result that survives repetition is that both DuckDB and Polars are about 5x faster than pandas.** The gap between DuckDB and Polars is not one this benchmark can call: measured cold, DuckDB is ahead on both dimensions; measured warm over 7 runs, Polars has the lower median and the two ranges overlap. On a single aggregation over 112k rows the two are the same engine class, and claiming a winner between them would be reading noise.
-
-Against pandas the mechanism is real and shows up either way: DuckDB aggregates over the Parquet scan without materialising the file as a Python object, and Polars materialises it but does the work in a multithreaded Rust engine.
-
-**On the memory column — it is two different numbers, and the distinction matters.** The RSS delta is measured cold (one run in a freshly spawned interpreter, so the delta includes allocation) and warm (the median of repeats inside one process). They differ by about 10x for DuckDB, because after the first run the allocator already holds the pages and the delta of run 2 measures almost nothing. The warm figure is not a smaller measurement of the same thing; it is a measurement of something else, and **the cold column is the one to quote**.
-
-The cold column comes from `src/make_figures.py`, which spawns one fresh interpreter per engine. `src/benchmark.py` instead runs all three sequentially in a single process, so only the first engine it measures is genuinely cold; in practice its numbers land close to the cold column (6.5 / 42.8 / 87.8 MB on the run checked here) because each engine allocates its own structures, but that is a property of this workload, not a guarantee.
-
-Neither column is peak-memory profiling, so read both as orders of magnitude rather than precise costs.
-
-## Installation
+## Reproduce
 
 ```bash
 python -m venv .venv
-source .venv/bin/activate      # On Windows: .venv\Scripts\activate
+.venv\Scripts\activate           # Linux/macOS: source .venv/bin/activate
 pip install -r requirements.txt
+
+python -m src.sources              # needs a Kaggle API token in ~/.kaggle
+python -m src.lakehouse.ingestion  # builds the lake, writes reports/ingestion.json
+python -m src.main                 # all metrics -> reports/results.json -> figures
+python -m src.benchmark            # optional, ~15 min; PySpark needs JAVA_HOME
+pytest
 ```
 
-## Usage
+The tests run on a 12-row fixture in the REES46 format, so CI needs neither the dataset nor Java. `tests/test_readme.py` checks the figures quoted in this README against `reports/results.json`.
 
-```bash
-# 1. Generate the synthetic dataset (data/raw/clickstream_events.parquet)
-python -m src.generators.synthetic_clickstream
+## Limitations
 
-# 2. Ingest: clean, validate the contract, write the partitioned lake
-python -m src.lakehouse.ingestion
-
-# 3. Run the analytical queries over the lake
-python -m src.lakehouse.analytics
-
-# 4. Compare Pandas vs. Polars vs. DuckDB
-python -m src.benchmark
-
-# 5. Redraw the README figures (repeats the benchmark cold and warm)
-python -m src.make_figures
-
-# Unit tests
-pytest tests/
-```
-
-## Tech stack
-
-| Tool | Role |
-|---|---|
-| **Polars** | ETL — multithreaded, Rust-backed cleaning and transformation |
-| **DuckDB** | Embedded analytical SQL engine, queries Parquet without loading it into RAM |
-| **PyArrow** | Hive-style partitioned Parquet writes |
-| **Pydantic v2** | Schema contract for the clickstream event |
-| **pytest** | Unit tests for cleaning, schema contract and metrics |
-| **pandas / psutil** | Only in `benchmark.py`, as the comparison baseline and for RAM measurement |
-| **matplotlib** | Only in `make_figures.py`, which draws the figures above from the same queries the analytics module runs |
+- The gap rule is a threshold, and a gap shorter than an hour or in a quiet hour would pass unseen. It is tuned to this store's volume.
+- Regime detection uses daily ratios; a tracking change within a day is dated to the nearest day boundary.
+- Prices are in the store's currency as published, with no conversion or deflation.
+- Sessions are the ids the store assigned; no re-sessionization by inactivity was attempted.

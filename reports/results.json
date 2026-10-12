@@ -1,0 +1,782 @@
+{
+  "overview": {
+    "events": 109819992,
+    "users": 5316649,
+    "sessions": 23016650,
+    "products": 206876,
+    "first_day": "2019-10-01",
+    "last_day": "2019-11-30"
+  },
+  "capture_gaps": {
+    "rule": "an hour with >= 5000 events and zero purchases",
+    "days": [
+      "2019-11-14",
+      "2019-11-15",
+      "2019-11-16",
+      "2019-11-17"
+    ],
+    "gap_hours": 48,
+    "views_on_gap_days_vs_clean_median": 3.53
+  },
+  "daily_revenue_median": 7161341.0,
+  "cart_regimes": [
+    {
+      "start": "2019-10-01",
+      "end": "2019-10-03",
+      "days": 3,
+      "carts_per_purchase": 0.89
+    },
+    {
+      "start": "2019-10-04",
+      "end": "2019-10-06",
+      "days": 3,
+      "carts_per_purchase": 1.49
+    },
+    {
+      "start": "2019-10-07",
+      "end": "2019-10-13",
+      "days": 7,
+      "carts_per_purchase": 0.8
+    },
+    {
+      "start": "2019-10-14",
+      "end": "2019-10-27",
+      "days": 14,
+      "carts_per_purchase": 1.49
+    },
+    {
+      "start": "2019-10-28",
+      "end": "2019-11-07",
+      "days": 11,
+      "carts_per_purchase": 0.8
+    },
+    {
+      "start": "2019-11-08",
+      "end": "2019-11-30",
+      "days": 19,
+      "carts_per_purchase": 2.87
+    }
+  ],
+  "funnels": [
+    {
+      "start": "2019-10-01",
+      "end": "2019-10-03",
+      "sessions": 768871,
+      "view_sessions": 768677,
+      "cart_sessions": 32254,
+      "purchase_sessions": 48819,
+      "cart_rate": 0.042,
+      "purchase_rate": 0.0635,
+      "purchase_sessions_without_cart": 0.6347
+    },
+    {
+      "start": "2019-10-04",
+      "end": "2019-10-06",
+      "sessions": 848500,
+      "view_sessions": 848391,
+      "cart_sessions": 66869,
+      "purchase_sessions": 61420,
+      "cart_rate": 0.0788,
+      "purchase_rate": 0.0724,
+      "purchase_sessions_without_cart": 0.4715
+    },
+    {
+      "start": "2019-10-07",
+      "end": "2019-10-13",
+      "sessions": 2131505,
+      "view_sessions": 2131194,
+      "cart_sessions": 85582,
+      "purchase_sessions": 144619,
+      "cart_rate": 0.0402,
+      "purchase_rate": 0.0679,
+      "purchase_sessions_without_cart": 0.6719
+    },
+    {
+      "start": "2019-10-14",
+      "end": "2019-10-27",
+      "sessions": 4394935,
+      "view_sessions": 4394011,
+      "cart_sessions": 345131,
+      "purchase_sessions": 304448,
+      "cart_rate": 0.0785,
+      "purchase_rate": 0.0693,
+      "purchase_sessions_without_cart": 0.4432
+    },
+    {
+      "start": "2019-10-28",
+      "end": "2019-11-07",
+      "sessions": 3642010,
+      "view_sessions": 3641329,
+      "cart_sessions": 133226,
+      "purchase_sessions": 215164,
+      "cart_rate": 0.0366,
+      "purchase_rate": 0.0591,
+      "purchase_sessions_without_cart": 0.6581
+    },
+    {
+      "start": "2019-11-08",
+      "end": "2019-11-30",
+      "sessions": 7955760,
+      "view_sessions": 7954084,
+      "cart_sessions": 847515,
+      "purchase_sessions": 401538,
+      "cart_rate": 0.1066,
+      "purchase_rate": 0.0505,
+      "purchase_sessions_without_cart": 0.0119
+    }
+  ],
+  "categories": [
+    {
+      "top_category": "electronics",
+      "share": 0.769
+    },
+    {
+      "top_category": "uncoded",
+      "share": 0.1025
+    },
+    {
+      "top_category": "appliances",
+      "share": 0.0563
+    },
+    {
+      "top_category": "computers",
+      "share": 0.0483
+    },
+    {
+      "top_category": "furniture",
+      "share": 0.0071
+    },
+    {
+      "top_category": "auto",
+      "share": 0.0051
+    },
+    {
+      "top_category": "construction",
+      "share": 0.0038
+    },
+    {
+      "top_category": "apparel",
+      "share": 0.0034
+    }
+  ],
+  "concentration": {
+    "buyers": 589820,
+    "top_1pct_share": 0.2154,
+    "top_10pct_share": 0.5771,
+    "gini": 0.6964,
+    "lorenz_top_share": [
+      0.0,
+      0.2154,
+      0.2976,
+      0.3561,
+      0.4026,
+      0.4418,
+      0.4753,
+      0.5046,
+      0.531,
+      0.555,
+      0.5771,
+      0.5975,
+      0.6167,
+      0.6344,
+      0.6507,
+      0.6659,
+      0.6802,
+      0.694,
+      0.7073,
+      0.72,
+      0.7319,
+      0.7431,
+      0.7538,
+      0.7641,
+      0.7739,
+      0.7831,
+      0.7917,
+      0.8,
+      0.8079,
+      0.8155,
+      0.8227,
+      0.8296,
+      0.8363,
+      0.8428,
+      0.849,
+      0.8549,
+      0.8606,
+      0.866,
+      0.8713,
+      0.8764,
+      0.8813,
+      0.886,
+      0.8906,
+      0.8949,
+      0.8991,
+      0.9031,
+      0.907,
+      0.9108,
+      0.9145,
+      0.918,
+      0.9216,
+      0.925,
+      0.9284,
+      0.9316,
+      0.9348,
+      0.9378,
+      0.9407,
+      0.9434,
+      0.9461,
+      0.9487,
+      0.9512,
+      0.9537,
+      0.9561,
+      0.9584,
+      0.9607,
+      0.9628,
+      0.9649,
+      0.967,
+      0.9689,
+      0.9708,
+      0.9726,
+      0.9744,
+      0.9762,
+      0.9779,
+      0.9796,
+      0.9811,
+      0.9826,
+      0.9839,
+      0.9852,
+      0.9865,
+      0.9877,
+      0.9888,
+      0.9898,
+      0.9908,
+      0.9917,
+      0.9926,
+      0.9934,
+      0.9941,
+      0.9948,
+      0.9955,
+      0.9961,
+      0.9967,
+      0.9973,
+      0.9978,
+      0.9983,
+      0.9987,
+      0.9991,
+      0.9994,
+      0.9997,
+      0.9999,
+      1.0
+    ]
+  },
+  "retention": {
+    "october_users": 3022290,
+    "active_again_in_november": 0.4638,
+    "october_buyers": 347118,
+    "bought_again_in_november": 0.263
+  },
+  "repeat": {
+    "buyers": 589820,
+    "multi_session_share": 0.3571
+  },
+  "daily": [
+    {
+      "day": "2019-10-01",
+      "views": 1208217,
+      "carts": 16193,
+      "purchases": 19305,
+      "revenue": 6275579.0,
+      "capture_gap": false
+    },
+    {
+      "day": "2019-10-02",
+      "views": 1154513,
+      "carts": 16871,
+      "purchases": 19469,
+      "revenue": 6213629.0,
+      "capture_gap": false
+    },
+    {
+      "day": "2019-10-03",
+      "views": 1088667,
+      "carts": 18702,
+      "purchases": 19255,
+      "revenue": 6233783.0,
+      "capture_gap": false
+    },
+    {
+      "day": "2019-10-04",
+      "views": 1346243,
+      "carts": 42657,
+      "purchases": 27039,
+      "revenue": 8623058.0,
+      "capture_gap": false
+    },
+    {
+      "day": "2019-10-05",
+      "views": 1271278,
+      "carts": 34564,
+      "purchases": 23492,
+      "revenue": 7341094.0,
+      "capture_gap": false
+    },
+    {
+      "day": "2019-10-06",
+      "views": 1264000,
+      "carts": 30994,
+      "purchases": 22169,
+      "revenue": 6737258.0,
+      "capture_gap": false
+    },
+    {
+      "day": "2019-10-07",
+      "views": 1161026,
+      "carts": 17570,
+      "purchases": 21378,
+      "revenue": 6348189.0,
+      "capture_gap": false
+    },
+    {
+      "day": "2019-10-08",
+      "views": 1329054,
+      "carts": 17952,
+      "purchases": 23071,
+      "revenue": 6819701.0,
+      "capture_gap": false
+    },
+    {
+      "day": "2019-10-09",
+      "views": 1306301,
+      "carts": 17886,
+      "purchases": 22747,
+      "revenue": 6855326.0,
+      "capture_gap": false
+    },
+    {
+      "day": "2019-10-10",
+      "views": 1243027,
+      "carts": 18336,
+      "purchases": 21992,
+      "revenue": 6665413.0,
+      "capture_gap": false
+    },
+    {
+      "day": "2019-10-11",
+      "views": 1447615,
+      "carts": 20733,
+      "purchases": 26224,
+      "revenue": 7716209.0,
+      "capture_gap": false
+    },
+    {
+      "day": "2019-10-12",
+      "views": 1433772,
+      "carts": 19998,
+      "purchases": 25373,
+      "revenue": 7307692.0,
+      "capture_gap": false
+    },
+    {
+      "day": "2019-10-13",
+      "views": 1584605,
+      "carts": 24124,
+      "purchases": 29561,
+      "revenue": 8457606.0,
+      "capture_gap": false
+    },
+    {
+      "day": "2019-10-14",
+      "views": 1381359,
+      "carts": 43591,
+      "purchases": 28405,
+      "revenue": 9356692.0,
+      "capture_gap": false
+    },
+    {
+      "day": "2019-10-15",
+      "views": 1466233,
+      "carts": 48066,
+      "purchases": 26371,
+      "revenue": 8652872.0,
+      "capture_gap": false
+    },
+    {
+      "day": "2019-10-16",
+      "views": 1445656,
+      "carts": 43936,
+      "purchases": 31393,
+      "revenue": 9747165.0,
+      "capture_gap": false
+    },
+    {
+      "day": "2019-10-17",
+      "views": 1338254,
+      "carts": 39281,
+      "purchases": 28317,
+      "revenue": 9026019.0,
+      "capture_gap": false
+    },
+    {
+      "day": "2019-10-18",
+      "views": 1415731,
+      "carts": 38879,
+      "purchases": 25849,
+      "revenue": 8154782.0,
+      "capture_gap": false
+    },
+    {
+      "day": "2019-10-19",
+      "views": 1385096,
+      "carts": 38285,
+      "purchases": 24657,
+      "revenue": 7562479.0,
+      "capture_gap": false
+    },
+    {
+      "day": "2019-10-20",
+      "views": 1444285,
+      "carts": 39375,
+      "purchases": 25097,
+      "revenue": 7515169.0,
+      "capture_gap": false
+    },
+    {
+      "day": "2019-10-21",
+      "views": 1343491,
+      "carts": 35485,
+      "purchases": 25165,
+      "revenue": 7862144.0,
+      "capture_gap": false
+    },
+    {
+      "day": "2019-10-22",
+      "views": 1354475,
+      "carts": 36027,
+      "purchases": 25383,
+      "revenue": 7913671.0,
+      "capture_gap": false
+    },
+    {
+      "day": "2019-10-23",
+      "views": 1319922,
+      "carts": 35372,
+      "purchases": 24730,
+      "revenue": 7614085.0,
+      "capture_gap": false
+    },
+    {
+      "day": "2019-10-24",
+      "views": 1256718,
+      "carts": 34592,
+      "purchases": 23999,
+      "revenue": 7470345.0,
+      "capture_gap": false
+    },
+    {
+      "day": "2019-10-25",
+      "views": 1374431,
+      "carts": 35550,
+      "purchases": 23883,
+      "revenue": 7235218.0,
+      "capture_gap": false
+    },
+    {
+      "day": "2019-10-26",
+      "views": 1289782,
+      "carts": 33722,
+      "purchases": 22653,
+      "revenue": 6917603.0,
+      "capture_gap": false
+    },
+    {
+      "day": "2019-10-27",
+      "views": 1330852,
+      "carts": 33147,
+      "purchases": 23401,
+      "revenue": 7197521.0,
+      "capture_gap": false
+    },
+    {
+      "day": "2019-10-28",
+      "views": 1221888,
+      "carts": 17193,
+      "purchases": 21111,
+      "revenue": 6591445.0,
+      "capture_gap": false
+    },
+    {
+      "day": "2019-10-29",
+      "views": 1190032,
+      "carts": 16597,
+      "purchases": 20372,
+      "revenue": 6432162.0,
+      "capture_gap": false
+    },
+    {
+      "day": "2019-10-30",
+      "views": 1172284,
+      "carts": 16458,
+      "purchases": 20815,
+      "revenue": 6633882.0,
+      "capture_gap": false
+    },
+    {
+      "day": "2019-10-31",
+      "views": 1208521,
+      "carts": 16305,
+      "purchases": 20097,
+      "revenue": 6455422.0,
+      "capture_gap": false
+    },
+    {
+      "day": "2019-11-01",
+      "views": 1403948,
+      "carts": 18349,
+      "purchases": 22457,
+      "revenue": 6949402.0,
+      "capture_gap": false
+    },
+    {
+      "day": "2019-11-02",
+      "views": 1514263,
+      "carts": 18808,
+      "purchases": 21863,
+      "revenue": 6389578.0,
+      "capture_gap": false
+    },
+    {
+      "day": "2019-11-03",
+      "views": 1525357,
+      "carts": 19538,
+      "purchases": 22145,
+      "revenue": 6656920.0,
+      "capture_gap": false
+    },
+    {
+      "day": "2019-11-04",
+      "views": 1744242,
+      "carts": 21377,
+      "purchases": 26889,
+      "revenue": 8033900.0,
+      "capture_gap": false
+    },
+    {
+      "day": "2019-11-05",
+      "views": 1673087,
+      "carts": 18800,
+      "purchases": 24872,
+      "revenue": 7248732.0,
+      "capture_gap": false
+    },
+    {
+      "day": "2019-11-06",
+      "views": 1649781,
+      "carts": 19124,
+      "purchases": 25319,
+      "revenue": 7397761.0,
+      "capture_gap": false
+    },
+    {
+      "day": "2019-11-07",
+      "views": 1752467,
+      "carts": 18908,
+      "purchases": 24862,
+      "revenue": 7061935.0,
+      "capture_gap": false
+    },
+    {
+      "day": "2019-11-08",
+      "views": 1793283,
+      "carts": 74953,
+      "purchases": 25714,
+      "revenue": 7742040.0,
+      "capture_gap": false
+    },
+    {
+      "day": "2019-11-09",
+      "views": 1784963,
+      "carts": 67854,
+      "purchases": 22767,
+      "revenue": 6646760.0,
+      "capture_gap": false
+    },
+    {
+      "day": "2019-11-10",
+      "views": 1846063,
+      "carts": 69413,
+      "purchases": 22878,
+      "revenue": 6633475.0,
+      "capture_gap": false
+    },
+    {
+      "day": "2019-11-11",
+      "views": 1909244,
+      "carts": 72723,
+      "purchases": 24930,
+      "revenue": 7255159.0,
+      "capture_gap": false
+    },
+    {
+      "day": "2019-11-12",
+      "views": 1895060,
+      "carts": 67597,
+      "purchases": 22725,
+      "revenue": 6782115.0,
+      "capture_gap": false
+    },
+    {
+      "day": "2019-11-13",
+      "views": 1924916,
+      "carts": 69245,
+      "purchases": 22548,
+      "revenue": 6812880.0,
+      "capture_gap": false
+    },
+    {
+      "day": "2019-11-14",
+      "views": 2877071,
+      "carts": 165541,
+      "purchases": 22124,
+      "revenue": 6949925.0,
+      "capture_gap": true
+    },
+    {
+      "day": "2019-11-15",
+      "views": 5737078,
+      "carts": 468262,
+      "purchases": 0,
+      "revenue": 0.0,
+      "capture_gap": true
+    },
+    {
+      "day": "2019-11-16",
+      "views": 6027799,
+      "carts": 392878,
+      "purchases": 68247,
+      "revenue": 23442970.0,
+      "capture_gap": true
+    },
+    {
+      "day": "2019-11-17",
+      "views": 5783122,
+      "carts": 411604,
+      "purchases": 185195,
+      "revenue": 57774482.0,
+      "capture_gap": true
+    },
+    {
+      "day": "2019-11-18",
+      "views": 1909738,
+      "carts": 80682,
+      "purchases": 28537,
+      "revenue": 8251008.0,
+      "capture_gap": false
+    },
+    {
+      "day": "2019-11-19",
+      "views": 1630977,
+      "carts": 70253,
+      "purchases": 24967,
+      "revenue": 7291408.0,
+      "capture_gap": false
+    },
+    {
+      "day": "2019-11-20",
+      "views": 1602680,
+      "carts": 69809,
+      "purchases": 24947,
+      "revenue": 7089210.0,
+      "capture_gap": false
+    },
+    {
+      "day": "2019-11-21",
+      "views": 1576425,
+      "carts": 72386,
+      "purchases": 25266,
+      "revenue": 6970110.0,
+      "capture_gap": false
+    },
+    {
+      "day": "2019-11-22",
+      "views": 1473785,
+      "carts": 67894,
+      "purchases": 24187,
+      "revenue": 6990846.0,
+      "capture_gap": false
+    },
+    {
+      "day": "2019-11-23",
+      "views": 1474613,
+      "carts": 62659,
+      "purchases": 22242,
+      "revenue": 6339090.0,
+      "capture_gap": false
+    },
+    {
+      "day": "2019-11-24",
+      "views": 1500431,
+      "carts": 65837,
+      "purchases": 23163,
+      "revenue": 6470751.0,
+      "capture_gap": false
+    },
+    {
+      "day": "2019-11-25",
+      "views": 1497270,
+      "carts": 68938,
+      "purchases": 24827,
+      "revenue": 7053767.0,
+      "capture_gap": false
+    },
+    {
+      "day": "2019-11-26",
+      "views": 1558978,
+      "carts": 69637,
+      "purchases": 24226,
+      "revenue": 6893393.0,
+      "capture_gap": false
+    },
+    {
+      "day": "2019-11-27",
+      "views": 1550584,
+      "carts": 69189,
+      "purchases": 24443,
+      "revenue": 7161341.0,
+      "capture_gap": false
+    },
+    {
+      "day": "2019-11-28",
+      "views": 1562502,
+      "carts": 69390,
+      "purchases": 24305,
+      "revenue": 7163832.0,
+      "capture_gap": false
+    },
+    {
+      "day": "2019-11-29",
+      "views": 1729884,
+      "carts": 88832,
+      "purchases": 32107,
+      "revenue": 9635318.0,
+      "capture_gap": false
+    },
+    {
+      "day": "2019-11-30",
+      "views": 1644901,
+      "carts": 79528,
+      "purchases": 28178,
+      "revenue": 8104972.0,
+      "capture_gap": false
+    }
+  ],
+  "ingestion": {
+    "raw_events": 109950743,
+    "exact_duplicates": 130739,
+    "price_zero_or_negative": 256761,
+    "events_without_session": 12,
+    "events_without_category": 35413780,
+    "events_without_brand": 15331243,
+    "lake_events": 109819992,
+    "lake_files": 61,
+    "lake_bytes": 3819055777
+  }
+}

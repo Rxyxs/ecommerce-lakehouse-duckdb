@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Modern Lakehouse Analytics Pipeline</title>
-<meta name="description" content="A modern data pipeline for ingesting and analyzing clickstream/e-commerce events at scale, built on a **lakehouse** of partitioned Parquet files: Polars for multithreaded ETL, PyAr">
+<title>E-commerce Lakehouse on 110 Million Real Events</title>
+<meta name="description" content="Two months of clickstream from a real multi-category online store, 110 million events in 14.7 GB of CSV, turned into a day-partitioned Parquet lake with DuckDB and queried in place">
 <style>
   :root { --bg:#FBFAF8; --surface:#FFF; --ink:#23201D; --muted:#6B645D; --line:#E3DED7; --accent:#B5553D; }
   @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
@@ -37,29 +37,35 @@
 <body>
 <div class="wrap">
 <header>
-<h1>Modern Lakehouse Analytics Pipeline</h1>
-<p class="lede">A modern data pipeline for ingesting and analyzing clickstream/e-commerce events at scale, built on a <strong>lakehouse</strong> of partitioned Parquet files: Polars for multithreaded ETL, PyArrow for columnar partitioning, and DuckDB as the embedded analytical SQL engine that queries the lake directly without loading it into RAM.</p>
+<h1>E-commerce Lakehouse on 110 Million Real Events</h1>
+<p class="lede">Two months of clickstream from a real multi-category online store, 110 million events in 14.7 GB of CSV, turned into a day-partitioned Parquet lake with DuckDB and queried in place. Before reporting a single funnel or revenue figure, the pipeline checks whether the logging itself is stable, and in this dataset it is not: <strong>purchases go unrecorded for 48 busy hours in mid-November, and cart events are tracked under six different regimes</strong>. A funnel pooled over the two months would be measuring the tracking, not the customers.</p>
 <div class="links">
 <a href="https://github.com/Rxyxs/ecommerce-lakehouse-duckdb">Code and method</a>
 <a href="https://github.com/Rxyxs/ecommerce-lakehouse-duckdb#readme">Full README</a>
 </div></header>
 <p>This page shows the project's results. The methodology, the design decisions and the limitations are documented in the repository's README.</p>
-<h2>`src/lakehouse/analytics.py`</h2>
+<h2>Finding 1: purchases are missing for four days</h2>
 <figure>
-<img src="figures/conversion_funnel.png" alt="Conversion funnel and its step rates against the generator&#x27;s design" loading="lazy">
-<figcaption>#### The funnel measures something slightly different from what the generator configures</figcaption>
+<img src="figures/daily_capture.png" alt="Daily views and purchases, with capture gaps shaded" loading="lazy">
+<figcaption>An hour of this store with at least 5,000 events and zero purchases is not a quiet hour; the quietest normal hours still record purchases. By that rule, <strong>48 hours on November 14–17 are capture gaps</strong>: November 15 has 468 thousand cart events and not one purchase, November 16 records purchases only between 08:00 and 15:00 UTC, and November 17 records them only from 03:00. Those days also carry 3.5 times the normal daily views, so a real sales event happened and the purchase log failed during it.</figcaption>
+</figure>
+<h2>Finding 2: cart tracking changes six times</h2>
+<figure>
+<img src="figures/cart_regimes.png" alt="Cart events per purchase with detected regimes" loading="lazy">
+<figcaption>Daily purchases are flat for the two months, but cart events per purchase jump from one day to the next: 0.89, then 1.49, 0.80, 1.49, 0.80 and finally 2.87 from November 8. Binary segmentation on the daily log ratio finds exactly those six regimes (a split is kept only while it separates levels at least 30% apart). Customers do not change their basket habits overnight, and the alternation between two levels looks like a second cart-event source being switched on and off.</figcaption>
 </figure>
 <figure>
-<img src="figures/revenue_by_category.png" alt="Revenue and order volume by category" loading="lazy">
-<figcaption>Revenue is concentrated: Electronics is 58.7% of the total on 549 purchases, the second-smallest order count. Purchases are nearly flat across the six categories (449–549), so the revenue ranking is almost entirely average order value — $1,255 for Electronics against $52 for Books, a 24x spread that comes straight from the generator&#x27;s per-category price ranges.</figcaption>
+<img src="figures/funnel_by_regime.png" alt="Session funnel per tracking regime" loading="lazy">
+<figcaption>The session funnel shows what that does. Up to November 7, <strong>44% to 67% of purchasing sessions contain no cart event at all</strong>, depending on the regime; from November 8 it is 1.2%. The cart step only became a reliable funnel step on November 8. Before that, a &quot;view → cart → purchase&quot; conversion rate would have been dividing by a number the tracking was not recording.</figcaption>
 </figure>
+<h2>Finding 3: who buys</h2>
 <figure>
-<img src="figures/cohort_retention.png" alt="Cohort retention heatmap" loading="lazy">
-<figcaption>The cohort query works and the three cohorts sum to exactly the 8,000 users generated. The *result*, though, is a check on the data rather than a finding: the January cohort goes 100% → 49% → 50%, rising in month 2. Real retention decays. It does not here because the generator draws each user&#x27;s sessions uniformly across the whole 90-day window, so a user is equally likely to be active in any month. There is no churn in this data to find, and the honest thing is to say so rather than present a flat curve as a retention insight.</figcaption>
+<img src="figures/revenue_concentration.png" alt="Revenue by category and buyer concentration" loading="lazy">
+<figcaption>- <strong>Electronics is 76.9% of revenue</strong>, then <code>uncoded</code> (10.2%), appliances (5.6%) and computers (4.8%).</figcaption>
 </figure>
-<h2>Benchmark results</h2>
+<h2>Engine benchmark</h2>
 <figure>
-<img src="figures/engine_benchmark.png" alt="Engine benchmark: wall time and memory" loading="lazy">
+<img src="figures/engine_benchmark.png" alt="Engine benchmark" loading="lazy">
 </figure>
 <footer>
 Pablo Reyes · <a href="https://github.com/Rxyxs/ecommerce-lakehouse-duckdb">github.com/Rxyxs/ecommerce-lakehouse-duckdb</a> · MIT<br><br>
