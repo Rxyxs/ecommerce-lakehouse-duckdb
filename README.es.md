@@ -1,4 +1,4 @@
-[ 🇺🇸 [Read in English](README.md) ] | [ 🇨🇱 Español ]
+[[English](README.md) ] | [Español ]
 
 # Lakehouse de e-commerce sobre 110 millones de eventos reales
 
