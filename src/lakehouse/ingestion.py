@@ -131,7 +131,7 @@ def write_lake(files: list[Path], output_dir: Path = LAKE_PATH, threads: int | N
     report["lake_events"] = int(con.execute(f"SELECT count(*) FROM {lake}").fetchone()[0])
     report["lake_files"] = sum(1 for _ in output_dir.rglob("*.parquet"))
     report["lake_bytes"] = sum(p.stat().st_size for p in output_dir.rglob("*.parquet"))
-    sample = con.execute(f"SELECT * FROM {lake} USING SAMPLE 2000 ROWS").pl()
+    sample = con.sql(f"SELECT * FROM {lake} USING SAMPLE 2000 ROWS").pl()
     validate_schema_contract(sample)
     con.close()
     return report

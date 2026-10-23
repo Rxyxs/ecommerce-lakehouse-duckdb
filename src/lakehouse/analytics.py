@@ -51,7 +51,7 @@ def overview(con) -> dict:
 
 def daily(con, gap_min_events: int = GAP_MIN_EVENTS) -> pd.DataFrame:
     """One row per day: event counts, revenue and how many busy hours had no purchase."""
-    return con.execute(f"""
+    return con.sql(f"""
         WITH hourly AS (
             SELECT event_time::DATE AS day, hour(event_time) AS hour, count(*) AS n,
                    count(*) FILTER (WHERE event_type = 'purchase') AS purchases
@@ -150,7 +150,7 @@ def session_funnel(con, start: str, end: str, day_table: pd.DataFrame) -> dict:
 
 
 def revenue_by_category(con, day_table: pd.DataFrame) -> pd.DataFrame:
-    return con.execute(f"""
+    return con.sql(f"""
         SELECT top_category, sum(price) AS revenue, count(*) AS purchases,
                sum(price) / sum(sum(price)) OVER () AS share
         FROM events
@@ -161,7 +161,7 @@ def revenue_by_category(con, day_table: pd.DataFrame) -> pd.DataFrame:
 
 def buyer_concentration(con, day_table: pd.DataFrame) -> dict:
     """Revenue share of the top buyers, the Gini of revenue per buyer and the Lorenz curve."""
-    spend = con.execute(f"""
+    spend = con.sql(f"""
         SELECT sum(price) AS revenue FROM events
         WHERE event_type = 'purchase' AND price IS NOT NULL AND {_clean_days_sql(day_table)}
         GROUP BY user_id ORDER BY revenue DESC
