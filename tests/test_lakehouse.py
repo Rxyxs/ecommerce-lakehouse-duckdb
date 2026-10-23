@@ -68,7 +68,7 @@ def test_quality_report_counts_raw_problems(lake):
 def test_cleaning_nulls_bad_prices_and_labels_uncoded(con):
     rows = con.execute("SELECT top_category, price FROM events WHERE user_id = 3 ORDER BY event_time").fetchall()
     assert rows == [("appliances", None)]
-    assert con.execute("SELECT count(*) FROM events WHERE top_category = 'uncoded'").fetchone()[0] == 4
+    assert con.execute("SELECT count(*) FROM events WHERE top_category = 'uncoded'").fetchall()[0][0] == 4
 
 
 def test_lake_is_partitioned_by_day(lake):

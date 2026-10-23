@@ -31,11 +31,11 @@ MIN_STEP_RATIO = 1.3
 def connect(lake: Path = LAKE_PATH, threads: int | None = None) -> duckdb.DuckDBPyConnection:
     con = duckdb.connect()
     if threads:
-        con.execute(f"SET threads={threads}")
+        con.execute(f"SET threads={threads}").fetchall()
     con.execute(
         "CREATE VIEW events AS SELECT * FROM "
         f"read_parquet('{lake.as_posix()}/**/*.parquet', hive_partitioning=true)"
-    )
+    ).fetchall()
     return con
 
 
@@ -44,7 +44,7 @@ def overview(con) -> dict:
         SELECT count(*), count(DISTINCT user_id), count(DISTINCT user_session),
                count(DISTINCT product_id), min(event_time)::DATE, max(event_time)::DATE
         FROM events
-    """).fetchone()
+    """).fetchall()[0]
     return {"events": row[0], "users": row[1], "sessions": row[2], "products": row[3],
             "first_day": str(row[4]), "last_day": str(row[5])}
 
@@ -138,7 +138,7 @@ def session_funnel(con, start: str, end: str, day_table: pd.DataFrame) -> dict:
             GROUP BY 1
         )
         SELECT count(*), sum(v::INT), sum(c::INT), sum(p::INT), sum((p AND NOT c)::INT) FROM s
-    """).fetchone()
+    """).fetchall()[0]
     sessions, views, carts, purchases, no_cart = (int(x) for x in row)
     return {
         "start": start, "end": end, "sessions": sessions,
@@ -195,7 +195,7 @@ def retention(con) -> dict:
         SELECT count(*), count(n.user_id),
                sum(o.bought::INT), sum((o.bought AND coalesce(n.bought, FALSE))::INT)
         FROM o LEFT JOIN n USING (user_id)
-    """).fetchone()
+    """).fetchall()[0]
     users, back, buyers, buyers_back = (int(x) for x in row)
     return {
         "october_users": users, "active_again_in_november": round(back / users, 4),
@@ -210,7 +210,7 @@ def repeat_buyers(con, day_table: pd.DataFrame) -> dict:
             WHERE event_type = 'purchase' AND {_clean_days_sql(day_table)} GROUP BY 1
         )
         SELECT count(*), sum((sessions > 1)::INT) FROM b
-    """).fetchone()
+    """).fetchall()[0]
     return {"buyers": int(row[0]), "multi_session_share": round(row[1] / row[0], 4)}
 
 
