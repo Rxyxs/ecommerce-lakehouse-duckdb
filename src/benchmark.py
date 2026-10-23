@@ -63,7 +63,7 @@ def query_polars(path: Path):
 def query_duckdb(path: Path, con=None):
     import duckdb
     con = con or duckdb.connect()
-    return con.execute(f"""
+    return con.sql(f"""
         SELECT top_category, sum(price) AS revenue, count(*) AS purchases,
                count(DISTINCT user_id) AS buyers
         FROM read_parquet('{_glob(path)}', hive_partitioning=false)

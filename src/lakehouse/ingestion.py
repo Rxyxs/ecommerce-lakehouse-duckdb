@@ -86,8 +86,8 @@ def quality_report(con: duckdb.DuckDBPyConnection, files: list[Path]) -> dict:
         SELECT count(*), sum((price <= 0)::int), sum((user_session IS NULL)::int),
                sum((category_code IS NULL)::int), sum((brand IS NULL)::int)
         FROM {src}
-    """).fetchone()
-    distinct = con.execute(f"SELECT count(*) FROM (SELECT DISTINCT * FROM {src})").fetchone()[0]
+    """).fetchall()[0]
+    distinct = con.execute(f"SELECT count(*) FROM (SELECT DISTINCT * FROM {src})").fetchall()[0][0]
     return {
         "raw_events": int(row[0]),
         "exact_duplicates": int(row[0] - distinct),
@@ -121,17 +121,17 @@ def write_lake(files: list[Path], output_dir: Path = LAKE_PATH, threads: int | N
     output_dir.parent.mkdir(parents=True, exist_ok=True)
     con = duckdb.connect()
     if threads:
-        con.execute(f"SET threads={threads}")
+        con.execute(f"SET threads={threads}").fetchall()
     report = quality_report(con, files)
     con.execute(
         f"COPY ({cleaning_sql(files)}) TO '{output_dir.as_posix()}' "
         f"(FORMAT PARQUET, PARTITION_BY ({', '.join(PARTITION_COLUMNS)}), COMPRESSION ZSTD)"
-    )
+    ).fetchall()
     lake = f"read_parquet('{output_dir.as_posix()}/**/*.parquet', hive_partitioning=true)"
-    report["lake_events"] = int(con.execute(f"SELECT count(*) FROM {lake}").fetchone()[0])
+    report["lake_events"] = int(con.execute(f"SELECT count(*) FROM {lake}").fetchall()[0][0])
     report["lake_files"] = sum(1 for _ in output_dir.rglob("*.parquet"))
     report["lake_bytes"] = sum(p.stat().st_size for p in output_dir.rglob("*.parquet"))
-    sample = con.execute(f"SELECT * FROM {lake} USING SAMPLE 2000 ROWS").pl()
+    sample = con.sql(f"SELECT * FROM {lake} USING SAMPLE 2000 ROWS").pl()
     validate_schema_contract(sample)
     con.close()
     return report
